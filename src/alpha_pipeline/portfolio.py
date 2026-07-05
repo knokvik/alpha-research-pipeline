@@ -83,7 +83,10 @@ def backtest_long_short(
     aligned_returns = returns_matrix.reindex(columns=shifted_weights.columns).fillna(0.0)
 
     gross_return = (shifted_weights * aligned_returns).sum(axis=1)
-    turnover = weight_matrix.diff().abs().sum(axis=1).fillna(weight_matrix.abs().sum(axis=1))
+    weight_diff = weight_matrix.diff().abs()
+    if len(weight_diff):
+        weight_diff.iloc[0] = weight_matrix.iloc[0].abs()
+    turnover = weight_diff.sum(axis=1)
     cost = turnover * (transaction_cost_bps / 10_000.0)
     net_return = gross_return - cost
     equity_curve = (1.0 + net_return).cumprod()
@@ -103,4 +106,3 @@ def backtest_long_short(
     first_rebalance = weights["date"].min()
     daily = daily[daily["date"] >= first_rebalance].reset_index(drop=True)
     return daily, weights
-

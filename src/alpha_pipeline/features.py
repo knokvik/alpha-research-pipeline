@@ -103,7 +103,10 @@ def cross_sectional_normalize(
         group.loc[:, columns] = centered / scale
         return group
 
-    frame = frame.groupby("date", group_keys=False).apply(normalize_group)
+    frame = pd.concat(
+        [normalize_group(group.copy()) for _, group in frame.groupby("date", sort=False)],
+        ignore_index=True,
+    )
     frame[columns] = frame[columns].replace([np.inf, -np.inf], np.nan).fillna(fill_value)
     return frame.sort_values(["date", "asset"]).reset_index(drop=True)
 
