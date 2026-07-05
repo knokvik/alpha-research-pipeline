@@ -93,14 +93,14 @@ with left:
     st.subheader("Net Equity Curve")
     st.plotly_chart(
         px.line(best_returns, x="date", y="equity_curve", color="variant"),
-        use_container_width=True,
+        width="stretch",
     )
 with right:
     st.subheader("Drawdown")
     drawdown = best_returns["equity_curve"] / best_returns["equity_curve"].cummax() - 1.0
     drawdown_frame = best_returns[["date", "variant"]].copy()
     drawdown_frame["drawdown"] = drawdown
-    st.plotly_chart(px.area(drawdown_frame, x="date", y="drawdown"), use_container_width=True)
+    st.plotly_chart(px.area(drawdown_frame, x="date", y="drawdown"), width="stretch")
 
 tabs = st.tabs(["Model Comparison", "Factor IC", "Folds", "Costs", "Trial Ledger", "Memo"])
 
@@ -116,31 +116,31 @@ with tabs[0]:
             }
         )
     comparison = pd.DataFrame(comparison_rows)
-    st.dataframe(comparison, use_container_width=True, hide_index=True)
+    st.dataframe(comparison, width="stretch", hide_index=True)
     st.plotly_chart(
         px.bar(comparison, x="variant", y=["sharpe", "deflated_sharpe"], barmode="group"),
-        use_container_width=True,
+        width="stretch",
     )
 
 with tabs[1]:
-    st.plotly_chart(px.line(rank_ic, x="date", y="rank_ic", color="variant"), use_container_width=True)
-    st.dataframe(rank_ic.groupby("variant")["rank_ic"].describe().reset_index(), use_container_width=True)
+    st.plotly_chart(px.line(rank_ic, x="date", y="rank_ic", color="variant"), width="stretch")
+    st.dataframe(rank_ic.groupby("variant")["rank_ic"].describe().reset_index(), width="stretch")
 
 with tabs[2]:
-    st.dataframe(fold_scores, use_container_width=True, hide_index=True)
-    st.plotly_chart(px.bar(fold_scores, x="fold_id", y="test_score", color="variant", barmode="group"), use_container_width=True)
+    st.dataframe(fold_scores, width="stretch", hide_index=True)
+    st.plotly_chart(px.bar(fold_scores, x="fold_id", y="test_score", color="variant", barmode="group"), width="stretch")
 
 with tabs[3]:
     st.plotly_chart(
         px.line(best_returns, x="date", y=["gross_return", "net_return", "transaction_cost"]),
-        use_container_width=True,
+        width="stretch",
     )
-    st.plotly_chart(px.line(best_returns, x="date", y="turnover"), use_container_width=True)
+    st.plotly_chart(px.line(best_returns, x="date", y="turnover"), width="stretch")
     latest_weights = weights[weights["variant"] == best_variant].sort_values("date").groupby("asset").tail(1)
-    st.dataframe(latest_weights.sort_values("weight"), use_container_width=True, hide_index=True)
+    st.dataframe(latest_weights.sort_values("weight"), width="stretch", hide_index=True)
 
 with tabs[4]:
-    st.dataframe(pd.DataFrame(ledger["trials"]), use_container_width=True, hide_index=True)
+    st.dataframe(pd.DataFrame(ledger["trials"]), width="stretch", hide_index=True)
 
 with tabs[5]:
     memo = render_memo(Path(selected))
