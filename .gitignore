@@ -1,0 +1,16 @@
+.venv/
+__pycache__/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.DS_Store
+*.pyc
+*.pyo
+*.egg-info/
+dist/
+build/
+data/raw/
+data/cache/
+artifacts/
+reports/generated/
+.streamlit/secrets.toml
