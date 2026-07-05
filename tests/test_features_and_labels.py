@@ -49,3 +49,16 @@ def test_forward_labels_are_strictly_after_feature_date() -> None:
     assert (dataset["label_start_date"] > dataset["date"]).all()
     assert (dataset["label_end_date"] >= dataset["label_start_date"]).all()
     assert dataset["forward_return"].notna().all()
+
+
+def test_model_factor_columns_exclude_labels_and_metadata() -> None:
+    prices = SyntheticPriceLoader(n_assets=5, n_days=90, seed=4).load_prices()
+    features = build_factor_frame(prices)
+    labels = build_forward_return_labels(prices, horizon_days=5)
+    dataset = assemble_model_dataset(features, labels)
+
+    columns = set(factor_columns(dataset))
+
+    assert "forward_return" not in columns
+    assert "label_start_date" not in columns
+    assert "label_end_date" not in columns
