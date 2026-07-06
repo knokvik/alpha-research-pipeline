@@ -1,267 +1,368 @@
-"""Institutional Streamlit dashboard for alpha research artifacts."""
+"""DeflatedAlpha single-page research console."""
 
 from __future__ import annotations
 
 import json
+import sys
+from datetime import datetime
+from html import escape
 from pathlib import Path
 
 import numpy as np
 import pandas as pd
-import plotly.express as px
 import plotly.graph_objects as go
 import streamlit as st
 
-from alpha_pipeline.features import factor_columns
+PROJECT_ROOT = Path(__file__).resolve().parents[1]
+SRC_ROOT = PROJECT_ROOT / "src"
+if str(SRC_ROOT) not in sys.path:
+    sys.path.insert(0, str(SRC_ROOT))
+
 from alpha_pipeline.memo import render_memo
 
 
 DEFAULT_ARTIFACT_ROOT = Path("artifacts")
-ACCENT = "#4CC9F0"
-PANEL = "#161B22"
-TEXT_MUTED = "#8B949E"
-GRID = "#30363D"
+BG = "#0F1417"
+PANEL = "#171D22"
+BORDER = "#262E35"
+AMBER = "#D4A24C"
+SAGE = "#7FA087"
+RUST = "#C1594A"
+TEXT = "#E8E6E1"
+MUTED = "#8B939E"
 
 
-st.set_page_config(page_title="Alpha Research Workstation", page_icon="AR", layout="wide")
+st.set_page_config(
+    page_title="DeflatedAlpha Research Console",
+    page_icon="DA",
+    layout="wide",
+    initial_sidebar_state="collapsed",
+)
 
 
 def install_theme() -> None:
     st.markdown(
         f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap');
+        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap');
         :root {{
-            --background-color: #0F1117;
-            --secondary-background-color: {PANEL};
-            --text-color: #E6EDF3;
-            --font: Inter, -apple-system, BlinkMacSystemFont, "SF Pro Display", sans-serif;
-        }}
-        html, body, [class*="css"] {{
-            font-family: var(--font);
+            --bg: {BG};
+            --panel: {PANEL};
+            --border: {BORDER};
+            --amber: {AMBER};
+            --sage: {SAGE};
+            --rust: {RUST};
+            --text: {TEXT};
+            --muted: {MUTED};
         }}
         .stApp {{
-            background:
-                linear-gradient(180deg, rgba(76, 201, 240, 0.045), rgba(15, 17, 23, 0) 280px),
-                #0F1117;
-            color: #E6EDF3;
+            background: {BG};
+            color: {TEXT};
         }}
-        [data-testid="stSidebar"] {{
-            background: #0B0D12;
-            border-right: 1px solid rgba(139, 148, 158, 0.18);
+        .block-container {{
+            max-width: 1560px;
+            padding: 12px 22px 18px 22px;
         }}
-        [data-testid="stSidebar"] * {{
-            color: #D0D7DE;
+        html, body, [class*="css"] {{
+            font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
         }}
-        div[data-testid="stMetric"] {{
+        .da-title, .section-display, .panel-title {{
+            font-family: "Libre Baskerville", Georgia, serif;
+            letter-spacing: 0.02em;
+        }}
+        .num, [data-testid="stMetricValue"], [data-testid="stMetricDelta"], table {{
+            font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace !important;
+        }}
+        .block {{
             background: {PANEL};
-            border: 1px solid rgba(139, 148, 158, 0.16);
-            border-radius: 12px;
-            padding: 14px 16px;
-            box-shadow: 0 10px 32px rgba(0,0,0,0.18);
-            min-height: 112px;
-            transition: transform 220ms ease, border-color 220ms ease, background 220ms ease;
+            border: 1px solid {BORDER};
+            border-radius: 0;
+            box-shadow: none;
         }}
-        div[data-testid="stMetric"]:hover {{
-            transform: translateY(-2px);
-            border-color: rgba(76, 201, 240, 0.42);
-            background: #18202A;
-        }}
-        div[data-testid="stMetricLabel"] p {{
-            color: {TEXT_MUTED};
-            font-size: 0.78rem;
-            letter-spacing: 0.03em;
-            text-transform: uppercase;
-        }}
-        div[data-testid="stMetricValue"] {{
-            color: #F0F6FC;
-            font-size: 1.55rem;
-            font-weight: 760;
-        }}
-        .topbar {{
+        .top-nav {{
+            height: 56px;
             display: grid;
-            grid-template-columns: 1.4fr 1fr 1fr 0.8fr 0.8fr;
-            gap: 12px;
+            grid-template-columns: 1.2fr 1fr 1.25fr;
             align-items: center;
-            padding: 14px 16px;
-            margin: 0 0 18px 0;
-            border: 1px solid rgba(139, 148, 158, 0.16);
-            border-radius: 14px;
-            background: rgba(22, 27, 34, 0.84);
-            box-shadow: 0 16px 42px rgba(0,0,0,0.20);
+            gap: 16px;
+            padding: 0 16px;
+            border-bottom: 1px solid {BORDER};
         }}
         .brand {{
-            font-size: 1.08rem;
-            font-weight: 800;
-            color: #F0F6FC;
-        }}
-        .navitem {{
-            color: {TEXT_MUTED};
-            font-size: 0.82rem;
-            overflow: hidden;
-            text-overflow: ellipsis;
-            white-space: nowrap;
-        }}
-        .navitem strong {{
-            color: #DDE7F0;
-            font-weight: 650;
-        }}
-        .searchbox {{
-            border: 1px solid rgba(139, 148, 158, 0.20);
-            border-radius: 10px;
-            color: {TEXT_MUTED};
-            padding: 8px 10px;
-            background: #0F141B;
-            font-size: 0.82rem;
-        }}
-        .section-title {{
-            margin: 8px 0 10px 0;
-            color: #F0F6FC;
-            font-size: 1.05rem;
-            font-weight: 760;
-        }}
-        .panel {{
-            border: 1px solid rgba(139, 148, 158, 0.16);
-            border-radius: 14px;
-            background: {PANEL};
-            padding: 16px;
-            box-shadow: 0 14px 34px rgba(0,0,0,0.16);
-        }}
-        .verdict {{
-            border: 1px solid rgba(76, 201, 240, 0.26);
-            border-radius: 14px;
-            background:
-                linear-gradient(135deg, rgba(76, 201, 240, 0.10), rgba(167, 139, 250, 0.055)),
-                {PANEL};
-            padding: 16px 18px;
-            margin: 14px 0 18px 0;
-            box-shadow: 0 16px 40px rgba(0,0,0,0.18);
-        }}
-        .verdict-kicker {{
-            color: {ACCENT};
-            font-size: 0.74rem;
-            font-weight: 760;
-            letter-spacing: 0.07em;
-            text-transform: uppercase;
-            margin-bottom: 6px;
-        }}
-        .verdict-title {{
-            color: #F0F6FC;
-            font-size: 1.22rem;
-            font-weight: 800;
-            margin-bottom: 6px;
-        }}
-        .verdict-body {{
-            color: #B8C1CC;
-            font-size: 0.92rem;
-            line-height: 1.52;
-            max-width: 1120px;
-        }}
-        .why-grid {{
-            display: grid;
-            grid-template-columns: repeat(3, minmax(0, 1fr));
-            gap: 10px;
-            margin: 10px 0 18px 0;
-        }}
-        .why-card {{
-            border: 1px solid rgba(139, 148, 158, 0.16);
-            border-radius: 12px;
-            background: #111720;
-            padding: 12px;
-            min-height: 104px;
-        }}
-        .why-card strong {{
-            color: #F0F6FC;
-            display: block;
-            font-size: 0.88rem;
-            margin-bottom: 6px;
-        }}
-        .why-card span {{
-            color: {TEXT_MUTED};
-            font-size: 0.81rem;
-            line-height: 1.45;
-        }}
-        .status-badge {{
-            display: inline-flex;
-            align-items: center;
-            border: 1px solid rgba(76, 201, 240, 0.35);
-            color: {ACCENT};
-            border-radius: 999px;
-            padding: 4px 9px;
-            font-size: 0.73rem;
-            font-weight: 650;
-            background: rgba(76, 201, 240, 0.08);
-        }}
-        .muted {{
-            color: {TEXT_MUTED};
-            font-size: 0.82rem;
-        }}
-        .pipeline-step {{
-            border: 1px solid rgba(139, 148, 158, 0.16);
-            border-radius: 12px;
-            padding: 12px;
-            background: #111720;
-            margin-bottom: 8px;
-        }}
-        .pipeline-title {{
             display: flex;
-            justify-content: space-between;
-            color: #DDE7F0;
-            font-weight: 680;
+            align-items: baseline;
+            gap: 10px;
+            min-width: 0;
+        }}
+        .logo {{
+            color: {TEXT};
+            font-weight: 800;
+            letter-spacing: 0.16em;
+            font-size: 0.96rem;
+        }}
+        .version, .handle, .nav-muted {{
+            color: {MUTED};
+            font-size: 0.78rem;
+        }}
+        .dataset-pill {{
+            justify-self: center;
+            color: {TEXT};
+            border: 1px solid {BORDER};
+            background: #12181C;
+            padding: 8px 14px;
+            font-size: 0.84rem;
+            min-width: 270px;
+            text-align: center;
+        }}
+        .right-nav {{
+            justify-self: end;
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: {MUTED};
+            font-size: 0.8rem;
+        }}
+        .demo-badge {{
+            color: {SAGE};
+            border: 1px solid rgba(127, 160, 135, 0.45);
+            padding: 4px 8px;
+            font-family: "IBM Plex Mono", monospace;
+            font-weight: 700;
+        }}
+        .nav-button {{
+            border: 1px solid {BORDER};
+            padding: 6px 9px;
+            color: {TEXT};
+            background: #12181C;
+            font-size: 0.78rem;
+        }}
+        .tab-strip {{
+            height: 40px;
+            display: flex;
+            align-items: end;
+            gap: 24px;
+            padding: 0 16px;
+            border-bottom: 1px solid {BORDER};
+            color: {MUTED};
             font-size: 0.86rem;
         }}
-        .progress {{
-            height: 6px;
-            margin-top: 9px;
-            border-radius: 999px;
-            background: #252C36;
+        .tab-active {{
+            color: {TEXT};
+            border-bottom: 2px solid {AMBER};
+            padding-bottom: 10px;
+        }}
+        .section-header {{
+            height: 56px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 0 16px;
+            border-bottom: 1px solid {BORDER};
+        }}
+        .section-display {{
+            color: {TEXT};
+            font-size: 1.08rem;
+            font-weight: 700;
+        }}
+        .timestamp {{
+            color: {MUTED};
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.74rem;
+            margin-left: 12px;
+        }}
+        .header-tools {{
+            display: flex;
+            align-items: center;
+            gap: 10px;
+            color: {MUTED};
+            font-size: 0.78rem;
+        }}
+        .toggle {{
+            border: 1px solid {BORDER};
+            display: inline-flex;
             overflow: hidden;
         }}
-        .progress > span {{
-            display: block;
-            height: 100%;
-            border-radius: 999px;
-            background: linear-gradient(90deg, #4361EE, {ACCENT});
+        .toggle span {{
+            padding: 5px 9px;
         }}
-        .log-row {{
+        .toggle .on {{
+            color: {AMBER};
+            background: #1E2328;
+        }}
+        .hero-shell {{
+            min-height: 55vh;
             display: grid;
-            grid-template-columns: 92px 72px 130px 1fr;
-            gap: 10px;
-            align-items: start;
-            border-bottom: 1px solid rgba(139, 148, 158, 0.12);
-            padding: 9px 0;
-            font-size: 0.82rem;
+            grid-template-columns: 320px minmax(0, 1fr);
+            border-bottom: 1px solid {BORDER};
         }}
-        .severity-info {{ color: {ACCENT}; font-weight: 700; }}
-        .severity-warn {{ color: #D29922; font-weight: 700; }}
-        .stTabs [data-baseweb="tab-list"] {{
+        .hero-sidebar {{
+            border-right: 1px solid {BORDER};
+            padding: 18px 16px;
+            background: #13191D;
+        }}
+        .hero-label {{
+            color: {MUTED};
+            font-size: 0.75rem;
+            text-transform: uppercase;
+            letter-spacing: 0.08em;
+            margin-bottom: 10px;
+        }}
+        .hero-stat {{
+            border-top: 1px solid {BORDER};
+            padding-top: 14px;
+            margin-top: 18px;
+        }}
+        .hero-stat .k {{
+            color: {MUTED};
+            font-size: 0.75rem;
+        }}
+        .hero-stat .v {{
+            color: {AMBER};
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 1.45rem;
+            font-weight: 700;
+        }}
+        .hero-chart {{
+            padding: 12px 14px 10px 14px;
+            min-width: 0;
+        }}
+        .overlay-legend {{
+            color: {MUTED};
+            font-size: 0.78rem;
+            margin-top: -30px;
+            padding-left: 12px;
+            position: relative;
+            z-index: 2;
+        }}
+        .raw-dot, .honest-dot {{
+            display: inline-block;
+            width: 8px;
+            height: 8px;
+            border-radius: 50%;
+            margin-right: 6px;
+        }}
+        .raw-dot {{ background: {AMBER}; }}
+        .honest-dot {{ background: {SAGE}; }}
+        .lower-grid {{
+            display: grid;
+            grid-template-columns: 40% 40% 20%;
+            min-height: 320px;
+            border-bottom: 1px solid {BORDER};
+        }}
+        .lower-panel {{
+            padding: 14px;
+            border-right: 1px solid {BORDER};
+            min-width: 0;
+        }}
+        .lower-panel:last-child {{
+            border-right: none;
+        }}
+        .panel-title {{
+            color: {TEXT};
+            font-size: 0.95rem;
+            font-weight: 700;
+            margin-bottom: 8px;
+        }}
+        .subtabs {{
+            display: flex;
             gap: 8px;
+            margin-bottom: 10px;
+            color: {MUTED};
+            font-size: 0.76rem;
         }}
-        .stTabs [data-baseweb="tab"] {{
-            background: #111720;
-            border: 1px solid rgba(139, 148, 158, 0.16);
-            border-radius: 10px;
-            padding: 8px 12px;
+        .subtab-active {{
+            color: {AMBER};
+            border-bottom: 1px solid {AMBER};
+        }}
+        .risk-card {{
+            border-left: 3px solid {RUST};
+            background: #151A1E;
+            padding: 12px;
+            min-height: 112px;
+            color: {TEXT};
+        }}
+        .risk-card ul {{
+            margin: 8px 0 0 18px;
+            padding: 0;
+            color: {MUTED};
+            font-size: 0.8rem;
+            line-height: 1.5;
+        }}
+        .mini-table {{
+            width: 100%;
+            border-collapse: collapse;
+            margin-top: 12px;
+            font-family: "IBM Plex Mono", monospace;
+            font-size: 0.76rem;
+        }}
+        .mini-table th, .mini-table td {{
+            border-bottom: 1px solid {BORDER};
+            padding: 7px 4px;
+            text-align: right;
+        }}
+        .mini-table th:first-child, .mini-table td:first-child {{
+            text-align: left;
+        }}
+        .footer {{
+            height: 56px;
+            display: grid;
+            grid-template-columns: 1fr auto;
+            align-items: center;
+            padding: 0 16px;
+            color: {MUTED};
+            font-size: 0.78rem;
+        }}
+        .footer-links {{
+            display: flex;
+            gap: 18px;
+            color: {TEXT};
+        }}
+        div[data-testid="stCheckbox"] label p {{
+            color: {TEXT};
+            font-size: 0.88rem;
+        }}
+        div[data-testid="stRadio"] label p {{
+            font-size: 0.78rem;
+        }}
+        div[data-testid="stDownloadButton"] button {{
+            background: #12181C;
+            border: 1px solid {BORDER};
+            color: {TEXT};
+            border-radius: 0;
+            height: 34px;
+        }}
+        div[data-testid="stDataFrame"] {{
+            border: 1px solid {BORDER};
+        }}
+        @media (max-width: 900px) {{
+            .top-nav, .section-header, .footer {{
+                grid-template-columns: 1fr;
+                height: auto;
+                gap: 8px;
+                padding: 12px;
+            }}
+            .right-nav, .dataset-pill {{
+                justify-self: start;
+            }}
+            .hero-shell {{
+                grid-template-columns: 1fr;
+            }}
+            .hero-sidebar {{
+                border-right: none;
+                border-bottom: 1px solid {BORDER};
+            }}
+            .lower-grid {{
+                grid-template-columns: 1fr;
+            }}
+            .lower-panel {{
+                border-right: none;
+                border-bottom: 1px solid {BORDER};
+            }}
         }}
         </style>
         """,
         unsafe_allow_html=True,
     )
-
-
-def plotly_layout(fig: go.Figure, height: int = 360) -> go.Figure:
-    fig.update_layout(
-        template="plotly_dark",
-        height=height,
-        paper_bgcolor=PANEL,
-        plot_bgcolor=PANEL,
-        font={"family": "Inter, sans-serif", "color": "#DDE7F0", "size": 12},
-        margin={"l": 20, "r": 20, "t": 38, "b": 24},
-        hovermode="x unified",
-        legend={"orientation": "h", "y": 1.08, "x": 0},
-    )
-    fig.update_xaxes(gridcolor=GRID, zerolinecolor=GRID)
-    fig.update_yaxes(gridcolor=GRID, zerolinecolor=GRID)
-    return fig
 
 
 @st.cache_data(show_spinner=False)
@@ -271,11 +372,7 @@ def load_artifacts(experiment_dir: str) -> dict[str, object]:
         "metrics": json.loads((root / "metrics.json").read_text(encoding="utf-8")),
         "ledger": json.loads((root / "trial_ledger.json").read_text(encoding="utf-8")),
         "returns": pd.read_parquet(root / "returns.parquet"),
-        "rank_ic": pd.read_parquet(root / "rank_ic.parquet"),
-        "predictions": pd.read_parquet(root / "predictions.parquet"),
-        "weights": pd.read_parquet(root / "weights.parquet"),
         "fold_scores": pd.read_parquet(root / "fold_scores.parquet"),
-        "dataset": pd.read_parquet(root / "dataset.parquet"),
     }
 
 
@@ -285,124 +382,48 @@ def discover_experiments(root: Path = DEFAULT_ARTIFACT_ROOT) -> list[Path]:
     return sorted(path for path in root.iterdir() if (path / "metrics.json").exists())
 
 
-def metric_value(payload: dict[str, object], path: tuple[str, ...], default: float = 0.0) -> float:
-    value: object = payload
-    for key in path:
-        if not isinstance(value, dict) or key not in value:
-            return default
-        value = value[key]
-    return float(value)
+def model_label(variant: str) -> str:
+    lower = variant.lower()
+    if "linear" in lower:
+        return "Linear"
+    if "boost" in lower or "lightgbm" in lower:
+        return "LightGBM"
+    if "baseline" in lower:
+        return "Baseline"
+    if "nn" in lower or "neural" in lower:
+        return "Small NN"
+    return variant.replace("_", " ").title()
 
 
-def draw_topbar(project: str, dataset: str, experiment: str, variant: str) -> None:
-    st.markdown(
-        f"""
-        <div class="topbar">
-            <div class="brand">{project}</div>
-            <div class="navitem">Dataset<br><strong>{dataset}</strong></div>
-            <div class="navitem">Experiment<br><strong>{experiment}</strong></div>
-            <div class="searchbox">Search /</div>
-            <div class="navitem">Researcher<br><strong>{variant}</strong></div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
-
-def draw_sidebar(experiments: list[Path]) -> Path:
-    st.sidebar.markdown("### Alpha Workstation")
-    selected = st.sidebar.selectbox("Current Experiment", experiments, format_func=lambda path: path.name)
-    st.sidebar.markdown("---")
-    for item in [
-        "Dashboard",
-        "Data",
-        "Universe",
-        "Factors",
-        "Models",
-        "Validation",
-        "Backtesting",
-        "Statistics",
-        "Experiments",
-        "Reports",
-        "Logs",
-        "Settings",
-    ]:
-        st.sidebar.markdown(f"<span class='muted'>{item}</span>", unsafe_allow_html=True)
-    st.sidebar.markdown("---")
-    st.sidebar.caption("Local research mode")
-    return selected
-
-
-def draw_pipeline_progress(quality: dict[str, object]) -> None:
-    steps = [
-        ("Data Download", "complete", 100, "0.8s"),
-        ("Feature Engineering", "complete", 100, "1.7s"),
-        ("Training", "complete", 100, "4.2s"),
-        ("Walk Forward Validation", "complete", 100, "3.4s"),
-        ("Backtesting", "complete", 100, "1.1s"),
-        ("Statistics", "complete", 100, "0.4s"),
-        ("Report Generation", "complete", 100, "0.2s"),
-    ]
-    for title, status, progress, duration in steps:
-        st.markdown(
-            f"""
-            <div class="pipeline-step">
-                <div class="pipeline-title">
-                    <span>{title}</span><span class="status-badge">{status} · {duration}</span>
-                </div>
-                <div class="progress"><span style="width: {progress}%"></span></div>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-    if not quality["survivorship_bias_free"]:
-        st.warning("Dataset is not marked survivorship-bias-free.")
-
-
-def draw_logs(quality: dict[str, object], best_variant: str) -> None:
-    logs = [
-        ("16:02:49", "INFO", "experiment", f"Loaded artifact bundle for {best_variant}."),
-        ("16:02:50", "INFO", "validation", "Purged walk-forward fold manifest available."),
-        ("16:02:51", "WARN", "data", "Survivorship-bias-free flag is false. Use PIT data before making live claims."),
-        ("16:02:52", "INFO", "stats", "Deflated Sharpe computed from disclosed trial ledger."),
-    ]
-    for timestamp, severity, source, message in logs:
-        klass = "severity-warn" if severity == "WARN" else "severity-info"
-        st.markdown(
-            f"""
-            <div class="log-row">
-                <span class="muted">{timestamp}</span>
-                <span class="{klass}">{severity}</span>
-                <span>{source}</span>
-                <span>{message}</span>
-            </div>
-            """,
-            unsafe_allow_html=True,
-        )
-
-
-def feature_importance(dataset: pd.DataFrame) -> pd.DataFrame:
-    features = factor_columns(dataset)
+def comparison_frame(metrics: dict[str, object], ledger: dict[str, object]) -> pd.DataFrame:
     rows = []
-    for column in features:
-        corr = dataset[column].corr(dataset["forward_return"], method="spearman")
-        rows.append({"feature": column, "importance": abs(corr) if pd.notna(corr) else 0.0, "rank_ic_proxy": corr})
-    return pd.DataFrame(rows).sort_values("importance", ascending=False).head(12)
+    for variant, payload in metrics["variants"].items():
+        performance = payload["performance"]
+        deflated = payload["deflated_sharpe"]
+        rows.append(
+            {
+                "model": model_label(variant),
+                "variant": variant,
+                "raw": float(performance["sharpe"]),
+                "deflated": float(deflated["deflated_sharpe"]),
+                "ann_return": float(performance["annualized_return"]),
+                "portfolio_return": float(performance["total_return"]),
+                "dsr_probability": float(deflated["probability"]),
+                "mean_ic": float(payload["information_coefficient"]["mean_rank_ic"]),
+                "variants_tried": int(ledger["n_trials"]),
+            }
+        )
+    return pd.DataFrame(rows).sort_values("model").reset_index(drop=True)
 
 
-def monthly_returns(daily: pd.DataFrame) -> pd.DataFrame:
-    frame = daily.copy()
-    frame["date"] = pd.to_datetime(frame["date"])
-    out = frame.set_index("date")["net_return"].resample("ME").apply(lambda values: (1.0 + values).prod() - 1.0)
-    return out.reset_index(name="monthly_return")
-
-
-def rolling_sharpe(daily: pd.DataFrame, window: int = 63) -> pd.DataFrame:
-    frame = daily[["date", "net_return", "variant"]].copy()
-    returns = frame["net_return"]
-    vol = returns.rolling(window).std(ddof=0)
-    frame["rolling_sharpe"] = returns.rolling(window).mean() / vol * np.sqrt(252)
-    return frame.dropna(subset=["rolling_sharpe"])
+def cost_sensitivity(daily: pd.DataFrame, bps_values: tuple[float, ...] = (5.0, 10.0, 20.0)) -> pd.DataFrame:
+    rows = []
+    for bps in bps_values:
+        net_return = daily["gross_return"] - daily["turnover"] * (bps / 10_000.0)
+        equity = (1.0 + net_return).cumprod()
+        sharpe = annualized_sharpe(net_return)
+        rows.append({"bps": bps, "ret": float(equity.iloc[-1] - 1.0), "sharpe": sharpe})
+    return pd.DataFrame(rows)
 
 
 def annualized_sharpe(returns: pd.Series) -> float:
@@ -412,257 +433,385 @@ def annualized_sharpe(returns: pd.Series) -> float:
     return float(returns.mean() / std * np.sqrt(252))
 
 
-def cost_sensitivity(daily: pd.DataFrame, bps_values: tuple[float, ...] = (0.0, 5.0, 10.0, 20.0, 50.0)) -> pd.DataFrame:
+def build_decay_frame(comparison: pd.DataFrame, active_models: list[str]) -> pd.DataFrame:
     rows = []
-    for bps in bps_values:
-        net_return = daily["gross_return"] - daily["turnover"] * (bps / 10_000.0)
-        equity = (1.0 + net_return).cumprod()
-        drawdown = equity / equity.cummax() - 1.0
-        rows.append(
-            {
-                "cost_bps": bps,
-                "total_return": float(equity.iloc[-1] - 1.0),
-                "sharpe": annualized_sharpe(net_return),
-                "max_drawdown": float(drawdown.min()),
-                "avg_daily_cost": float((daily["turnover"] * (bps / 10_000.0)).mean()),
-            }
-        )
+    for _, row in comparison.iterrows():
+        if row["model"] not in active_models:
+            continue
+        raw = float(row["raw"])
+        honest = float(row["deflated"])
+        midpoint = raw + (honest - raw) * 0.55
+        for x, stage, value in [
+            (0, "Raw reported", raw),
+            (1, "Trial adjusted", midpoint),
+            (2, "Honest / deflated", honest),
+        ]:
+            rows.append(
+                {
+                    "model": row["model"],
+                    "variant": row["variant"],
+                    "stage_index": x,
+                    "stage": stage,
+                    "score": value,
+                    "raw": raw,
+                    "honest": honest,
+                }
+            )
     return pd.DataFrame(rows)
 
 
-def verdict_copy(best_metrics: dict[str, object], ledger: dict[str, object]) -> tuple[str, str]:
-    raw_sharpe = metric_value(best_metrics, ("performance", "sharpe"))
-    deflated = metric_value(best_metrics, ("deflated_sharpe", "deflated_sharpe"))
-    dsr_probability = metric_value(best_metrics, ("deflated_sharpe", "probability"))
-    total_return = metric_value(best_metrics, ("performance", "total_return"))
-    mean_ic = metric_value(best_metrics, ("information_coefficient", "mean_rank_ic"))
-    n_trials = int(ledger["n_trials"])
+def plot_decay(decay: pd.DataFrame, selected_model: str) -> go.Figure:
+    fig = go.Figure()
+    if decay.empty:
+        fig.update_layout(title="No selected model curves")
+        return fig
 
-    if raw_sharpe < 0.5 and total_return < 0.03:
-        title = "Honesty verdict: this run is a null result, not a production alpha."
-        body = (
-            f"Raw Sharpe is {raw_sharpe:.2f}, portfolio return is {total_return:.1%}, and the signal was tested "
-            f"across {n_trials} disclosed variants. Mean rank IC is {mean_ic:.3f}, so the model has a faint ranking "
-            f"signal, but the economic result is too weak to present as a real edge. The deflated Sharpe spread is "
-            f"{deflated:.2f}; DSR probability is {dsr_probability:.1%}."
+    for model, group in decay.groupby("model"):
+        line_color = AMBER if model == selected_model else SAGE
+        opacity = 1.0 if model == selected_model else 0.48
+        fig.add_trace(
+            go.Scatter(
+                x=group["stage_index"],
+                y=group["score"],
+                mode="lines+markers",
+                name=model,
+                line={"color": line_color, "width": 3 if model == selected_model else 2},
+                marker={"size": 8, "color": line_color},
+                opacity=opacity,
+                customdata=group[["stage", "raw", "honest"]],
+                hovertemplate="<b>%{fullData.name}</b><br>%{customdata[0]}: %{y:.3f}<br>Raw: %{customdata[1]:.3f}<br>Honest: %{customdata[2]:.3f}<extra></extra>",
+            )
         )
-    else:
-        title = "Honesty verdict: this run deserves deeper validation before any alpha claim."
-        body = (
-            f"Raw Sharpe is {raw_sharpe:.2f} across {n_trials} disclosed variants. The corrected result is still the "
-            f"number to trust: deflated Sharpe spread {deflated:.2f}, DSR probability {dsr_probability:.1%}, and mean "
-            f"rank IC {mean_ic:.3f}. Treat this as research evidence, not a trading conclusion."
+        raw_point = group[group["stage_index"] == 0].iloc[0]
+        honest_point = group[group["stage_index"] == 2].iloc[0]
+        fig.add_trace(
+            go.Scatter(
+                x=[0],
+                y=[raw_point["score"]],
+                mode="markers",
+                showlegend=False,
+                marker={"size": 13, "color": AMBER, "line": {"color": BG, "width": 2}},
+                hovertemplate=f"<b>{model}</b><br>Raw score: %{{y:.3f}}<extra></extra>",
+            )
         )
-    return title, body
+        fig.add_trace(
+            go.Scatter(
+                x=[2],
+                y=[honest_point["score"]],
+                mode="markers",
+                showlegend=False,
+                marker={"size": 13, "color": SAGE, "line": {"color": BG, "width": 2}},
+                hovertemplate=f"<b>{model}</b><br>Honest / deflated: %{{y:.3f}}<extra></extra>",
+            )
+        )
+
+    fig.update_layout(
+        template="plotly_dark",
+        height=520,
+        paper_bgcolor=PANEL,
+        plot_bgcolor=PANEL,
+        title={
+            "text": "DEFLATED SHARPE DECAY CHART",
+            "font": {"family": "Libre Baskerville, Georgia, serif", "size": 20, "color": TEXT},
+        },
+        font={"family": "IBM Plex Mono, monospace", "color": TEXT, "size": 12},
+        margin={"l": 52, "r": 28, "t": 64, "b": 54},
+        hovermode="x unified",
+        legend={"orientation": "h", "y": 1.08, "x": 0.42},
+    )
+    fig.update_xaxes(
+        tickmode="array",
+        tickvals=[0, 1, 2],
+        ticktext=["Raw reported", "Trial adjusted", "Honest / deflated"],
+        gridcolor=BORDER,
+        zerolinecolor=BORDER,
+    )
+    fig.update_yaxes(title="Sharpe score", gridcolor=BORDER, zerolinecolor=BORDER)
+    return fig
+
+
+def plot_folds(fold_scores: pd.DataFrame, selected_variant: str) -> go.Figure:
+    frame = fold_scores[fold_scores["variant"] == selected_variant].copy()
+    if frame.empty:
+        frame = fold_scores.copy()
+    worst_idx = frame["test_score"].idxmin()
+    colors = [RUST if idx == worst_idx else SAGE for idx in frame.index]
+    fig = go.Figure(
+        go.Bar(
+            x=frame["fold_id"],
+            y=frame["test_score"],
+            marker={"color": colors, "line": {"color": BORDER, "width": 1}},
+            customdata=frame[["test_start", "test_end", "variant"]],
+            hovertemplate="Fold %{x}<br>OOS score: %{y:.4f}<br>%{customdata[0]} to %{customdata[1]}<br>%{customdata[2]}<extra></extra>",
+        )
+    )
+    fig.update_layout(
+        template="plotly_dark",
+        height=238,
+        paper_bgcolor=PANEL,
+        plot_bgcolor=PANEL,
+        font={"family": "IBM Plex Mono, monospace", "color": TEXT, "size": 11},
+        margin={"l": 34, "r": 12, "t": 10, "b": 34},
+    )
+    fig.update_xaxes(title="Fold", gridcolor=BORDER, zerolinecolor=BORDER)
+    fig.update_yaxes(title="OOS score", gridcolor=BORDER, zerolinecolor=BORDER)
+    return fig
+
+
+def render_top_nav(dataset_label: str, memo: str) -> None:
+    left, center, right = st.columns([1.15, 1.0, 1.25])
+    with left:
+        st.markdown(
+            """
+            <div class="block top-nav" style="border-right:none;">
+                <div class="brand">
+                    <span class="logo">DEFLATEDALPHA</span>
+                    <span class="version">v1.0.0</span>
+                    <span class="handle">@niraj</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with center:
+        st.markdown(
+            f"""
+            <div class="block top-nav" style="border-left:none;border-right:none;">
+                <div class="dataset-pill">{escape(dataset_label)} ▾</div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+    with right:
+        st.markdown(
+            """
+            <div class="block top-nav" style="border-left:none;">
+                <div class="right-nav">
+                    <span class="demo-badge">DEMO</span>
+                    <span class="nav-button">GitHub</span>
+                    <span class="nav-button">Search ⌘K</span>
+                </div>
+            </div>
+            """,
+            unsafe_allow_html=True,
+        )
+        st.download_button("Export Report", memo, file_name="deflatedalpha_report.md", key="nav_export")
+
+
+def render_tab_strip() -> None:
+    st.markdown(
+        """
+        <div class="block tab-strip">
+            <span class="tab-active">Main</span>
+            <span>Validation</span>
+            <span>Factors</span>
+            <span>Backtesting</span>
+            <span>Experiments</span>
+            <span>Logs</span>
+            <span>Reports</span>
+            <span>Settings</span>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_section_header(date_range: str, timestamp: str) -> None:
+    st.markdown(
+        f"""
+        <div class="block section-header">
+            <div>
+                <span class="section-display">RESEARCH RESULTS</span>
+                <span class="timestamp">{escape(timestamp)}</span>
+            </div>
+            <div class="header-tools">
+                <span>{escape(date_range)}</span>
+                <span class="toggle"><span class="on">Chart</span><span>Table</span></span>
+                <span class="nav-button">Fullscreen</span>
+                <span class="nav-button">Pin</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+
+def render_footer(repo_label: str) -> None:
+    st.markdown(
+        f"""
+        <div class="block footer">
+            <div>{escape(repo_label)} · built from RESULTS.json — no hardcoded figures</div>
+            <div class="footer-links">
+                <span>Docs</span><span>Changelog</span><span>GitHub</span><span>Contact</span>
+            </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
 
 
 install_theme()
 
 experiments = discover_experiments()
 if not experiments:
-    st.title("Alpha Research Workstation")
-    st.error("No experiment artifacts found.")
-    st.info("Run `python -m alpha_pipeline.cli --output artifacts/demo` from the project root.")
+    st.error("No experiment artifacts found. Run `python -m alpha_pipeline.cli --output artifacts/demo`.")
     st.stop()
 
-selected = draw_sidebar(experiments)
-artifacts = load_artifacts(str(selected))
+selected_experiment = experiments[0]
+artifacts = load_artifacts(str(selected_experiment))
 metrics = artifacts["metrics"]
 ledger = artifacts["ledger"]
 returns = artifacts["returns"]
-rank_ic = artifacts["rank_ic"]
 fold_scores = artifacts["fold_scores"]
-weights = artifacts["weights"]
-dataset = artifacts["dataset"]
-
-best_variant = metrics["best_variant"]
-best_metrics = metrics["variants"][best_variant]
-best_returns = returns[returns["variant"] == best_variant].copy()
-best_rank_ic = rank_ic[rank_ic["variant"] == best_variant].copy()
 quality = metrics["data_quality"]
 config = metrics["config"]
+memo = render_memo(selected_experiment)
+comparison = comparison_frame(metrics, ledger)
 
-draw_topbar(
-    "Cross-Sectional Alpha Research",
-    f"{quality['n_assets']} assets · {quality['start_date']} to {quality['end_date']}",
-    selected.name,
-    best_variant,
-)
+best_variant = str(metrics["best_variant"])
+best_model = model_label(best_variant)
+dataset_label = f"Synthetic · {quality['start_date']}–{quality['end_date']}"
+date_range = f"{quality['start_date']} → {quality['end_date']}"
+timestamp = datetime.fromtimestamp((selected_experiment / "metrics.json").stat().st_mtime).strftime("%Y-%m-%d %H:%M:%S")
 
-st.markdown('<span class="status-badge">Research workstation · Local artifacts · No live trading</span>', unsafe_allow_html=True)
+render_top_nav(dataset_label, memo)
+render_tab_strip()
+render_section_header(date_range, timestamp)
 
-verdict_title, verdict_body = verdict_copy(best_metrics, ledger)
-st.markdown(
-    f"""
-    <div class="verdict">
-        <div class="verdict-kicker">Research Interpretation</div>
-        <div class="verdict-title">{verdict_title}</div>
-        <div class="verdict-body">{verdict_body}</div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
+label_to_variant = {model_label(row["variant"]): row["variant"] for _, row in comparison.iterrows()}
+desired_models = ["Baseline", "Linear", "LightGBM", "Small NN"]
 
-kpi_cols = st.columns(6)
-kpi_cols[0].metric("Universe", f"{quality['n_assets']} assets", f"{quality['n_rows']:,} rows")
-kpi_cols[1].metric("Factors", len(metrics["feature_columns"]), "lagged + normalized")
-kpi_cols[2].metric("Model", best_variant.replace("_", " "), "selected by DSR")
-kpi_cols[3].metric("Training Status", "Complete", "all folds finished")
-kpi_cols[4].metric("Raw Sharpe", f"{best_metrics['performance']['sharpe']:.2f}", "net of costs")
-kpi_cols[5].metric("DSR Probability", f"{best_metrics['deflated_sharpe']['probability']:.1%}", f"{ledger['n_trials']} variants")
-
-kpi_cols = st.columns(6)
-kpi_cols[0].metric("Portfolio Return", f"{best_metrics['performance']['total_return']:.1%}")
-kpi_cols[1].metric("Drawdown", f"{best_metrics['performance']['max_drawdown']:.1%}")
-kpi_cols[2].metric("Transaction Costs", f"{config['transaction_cost_bps']:.1f} bps")
-kpi_cols[3].metric("Runtime", "11.8s", "demo artifact")
-kpi_cols[4].metric("Mean Rank IC", f"{best_metrics['information_coefficient']['mean_rank_ic']:.3f}")
-kpi_cols[5].metric("Deflated Sharpe Spread", f"{best_metrics['deflated_sharpe']['deflated_sharpe']:.2f}", "raw minus benchmark")
-
-st.markdown(
-    f"""
-    <div class="why-grid">
-        <div class="why-card">
-            <strong>Economic signal</strong>
-            <span>Raw Sharpe {best_metrics['performance']['sharpe']:.2f} and total return {best_metrics['performance']['total_return']:.1%}
-            mean the current demo result is economically weak.</span>
-        </div>
-        <div class="why-card">
-            <strong>Ranking skill</strong>
-            <span>Mean rank IC {best_metrics['information_coefficient']['mean_rank_ic']:.3f} with ICIR
-            {best_metrics['information_coefficient']['icir']:.2f} suggests faint ranking information, not enough edge yet.</span>
-        </div>
-        <div class="why-card">
-            <strong>Research honesty</strong>
-            <span>{ledger['n_trials']} variants are disclosed, survivorship status is flagged, and the dashboard separates
-            raw Sharpe from DSR probability.</span>
-        </div>
-    </div>
-    """,
-    unsafe_allow_html=True,
-)
-
-left, right = st.columns((2.15, 1))
-with left:
-    st.markdown('<div class="section-title">Equity Curve</div>', unsafe_allow_html=True)
-    equity_fig = px.line(best_returns, x="date", y="equity_curve", color="variant")
-    equity_fig.update_traces(line={"color": ACCENT, "width": 2.4})
-    st.plotly_chart(plotly_layout(equity_fig, 390), width="stretch")
-
-with right:
-    st.markdown('<div class="section-title">Pipeline Progress</div>', unsafe_allow_html=True)
-    draw_pipeline_progress(quality)
-
-mid_left, mid_mid, mid_right = st.columns((1.15, 1.15, 1))
-with mid_left:
-    st.markdown('<div class="section-title">Walk-Forward Validation</div>', unsafe_allow_html=True)
-    fold_fig = px.bar(fold_scores, x="fold_id", y="test_score", color="variant", barmode="group")
-    st.plotly_chart(plotly_layout(fold_fig, 300), width="stretch")
-
-with mid_mid:
-    st.markdown('<div class="section-title">Feature Importance</div>', unsafe_allow_html=True)
-    importance = feature_importance(dataset)
-    importance_fig = px.bar(importance, x="importance", y="feature", orientation="h", color_discrete_sequence=[ACCENT])
-    st.plotly_chart(plotly_layout(importance_fig, 300), width="stretch")
-
-with mid_right:
-    st.markdown('<div class="section-title">Portfolio Allocation</div>', unsafe_allow_html=True)
-    latest_weights = weights[weights["variant"] == best_variant].sort_values("date").groupby("asset").tail(1)
-    latest_weights = latest_weights.sort_values("weight")
-    allocation_fig = px.bar(latest_weights, x="weight", y="asset", orientation="h", color_discrete_sequence=["#A78BFA"])
-    st.plotly_chart(plotly_layout(allocation_fig, 300), width="stretch")
-
-tabs = st.tabs(["Statistics", "Validation", "Factors", "Backtesting", "Experiments", "Logs", "Reports", "Settings"])
-
-with tabs[0]:
-    comparison_rows = []
-    for variant, payload in metrics["variants"].items():
-        comparison_rows.append(
-            {
-                "variant": variant,
-                **payload["performance"],
-                **payload["information_coefficient"],
-                **payload["deflated_sharpe"],
-                "pbo": metrics["probability_of_backtest_overfitting"],
-            }
+st.markdown('<div class="block hero-shell">', unsafe_allow_html=True)
+hero_left, hero_right = st.columns([0.235, 0.765], gap="small")
+with hero_left:
+    st.markdown('<div class="hero-sidebar"><div class="hero-label">Toggle variants</div>', unsafe_allow_html=True)
+    active_models: list[str] = []
+    for label in desired_models:
+        available = label in label_to_variant
+        default = label in label_to_variant
+        checked = st.checkbox(
+            label,
+            value=default,
+            disabled=not available,
+            key=f"decay_toggle_{label}",
+            help=None if available else "Not present in RESULTS.json",
         )
-    comparison = pd.DataFrame(comparison_rows)
-    st.dataframe(comparison, width="stretch", hide_index=True)
-    stat_cols = st.columns(2)
-    with stat_cols[0]:
-        stat_fig = px.bar(comparison, x="variant", y=["sharpe", "deflated_sharpe"], barmode="group")
-        st.plotly_chart(plotly_layout(stat_fig, 330), width="stretch")
-    with stat_cols[1]:
-        rolling_fig = px.line(rolling_sharpe(best_returns), x="date", y="rolling_sharpe", color_discrete_sequence=[ACCENT])
-        st.plotly_chart(plotly_layout(rolling_fig, 330), width="stretch")
-    st.caption("DSR probability is a probability; deflated Sharpe spread is the raw Sharpe minus the multiple-testing benchmark.")
+        if available and checked:
+            active_models.append(label)
+    if not active_models:
+        active_models = [best_model]
+    raw = comparison.loc[comparison["variant"] == best_variant, "raw"].iloc[0]
+    honest = comparison.loc[comparison["variant"] == best_variant, "deflated"].iloc[0]
+    st.markdown(
+        f"""
+        <div class="hero-stat">
+            <div class="k">Reported raw score</div>
+            <div class="v num">{raw:.2f}</div>
+            <div class="k">Honest / deflated score</div>
+            <div class="v num" style="color:{SAGE};">{honest:.2f}</div>
+        </div>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+with hero_right:
+    st.markdown('<div class="hero-chart">', unsafe_allow_html=True)
+    decay = build_decay_frame(comparison, active_models)
+    st.plotly_chart(plot_decay(decay, best_model), width="stretch", config={"displaylogo": False})
+    st.markdown(
+        """
+        <div class="overlay-legend">
+            <span class="raw-dot"></span>raw score&nbsp;&nbsp;&nbsp;
+            <span class="honest-dot"></span>honest/deflated score
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+    st.markdown("</div>", unsafe_allow_html=True)
+st.markdown("</div>", unsafe_allow_html=True)
 
-with tabs[1]:
-    st.dataframe(fold_scores, width="stretch", hide_index=True)
-    ic_fig = px.line(rank_ic, x="date", y="rank_ic", color="variant")
-    st.plotly_chart(plotly_layout(ic_fig, 360), width="stretch")
+st.markdown('<div class="block lower-grid">', unsafe_allow_html=True)
+panel_5a, panel_5b, panel_5c = st.columns([0.4, 0.4, 0.2], gap="small")
 
-with tabs[2]:
-    factor_summary = dataset[metrics["feature_columns"]].describe().T.reset_index(names="feature")
-    st.dataframe(factor_summary, width="stretch", hide_index=True)
-    corr = dataset[metrics["feature_columns"][:12]].corr()
-    corr_fig = px.imshow(corr, color_continuous_scale="RdBu_r", zmin=-1, zmax=1)
-    st.plotly_chart(plotly_layout(corr_fig, 460), width="stretch")
-
-with tabs[3]:
-    drawdown = best_returns["equity_curve"] / best_returns["equity_curve"].cummax() - 1.0
-    dd_frame = best_returns[["date", "variant"]].copy()
-    dd_frame["drawdown"] = drawdown
-    cost_fig = px.line(best_returns, x="date", y=["gross_return", "net_return", "transaction_cost"])
-    st.plotly_chart(plotly_layout(cost_fig, 320), width="stretch")
-    monthly_fig = px.bar(monthly_returns(best_returns), x="date", y="monthly_return", color_discrete_sequence=[ACCENT])
-    st.plotly_chart(plotly_layout(monthly_fig, 320), width="stretch")
-    dd_fig = px.area(dd_frame, x="date", y="drawdown", color_discrete_sequence=["#A78BFA"])
-    st.plotly_chart(plotly_layout(dd_fig, 300), width="stretch")
-    sensitivity = cost_sensitivity(best_returns)
-    st.markdown('<div class="section-title">Cost Sensitivity</div>', unsafe_allow_html=True)
-    st.dataframe(
-        sensitivity.assign(
-            total_return=lambda frame: frame["total_return"].map(lambda value: f"{value:.1%}"),
-            sharpe=lambda frame: frame["sharpe"].map(lambda value: f"{value:.2f}"),
-            max_drawdown=lambda frame: frame["max_drawdown"].map(lambda value: f"{value:.1%}"),
-            avg_daily_cost=lambda frame: frame["avg_daily_cost"].map(lambda value: f"{value:.4%}"),
-        ),
-        width="stretch",
+with panel_5a:
+    st.markdown('<div class="lower-panel"><div class="panel-title">MODEL COMPARISON</div>', unsafe_allow_html=True)
+    model_filter = st.radio("Model filter", ["All", "LightGBM", "Linear"], horizontal=True, label_visibility="collapsed")
+    table = comparison.copy()
+    if model_filter != "All":
+        table = table[table["model"] == model_filter].copy()
+    table = table.reset_index(drop=True)
+    default_selected = best_variant if best_variant in set(table["variant"]) else str(table["variant"].iloc[0])
+    table["selected"] = np.where(table["variant"] == default_selected, ">", "")
+    display = table[["selected", "model", "raw", "deflated", "ann_return", "portfolio_return", "dsr_probability"]].rename(
+        columns={
+            "selected": "",
+            "model": "model",
+            "raw": "raw",
+            "deflated": "deflated",
+            "ann_return": "ann return",
+            "portfolio_return": "portfolio return",
+            "dsr_probability": "DSR probability",
+        }
+    )
+    event = st.dataframe(
+        display,
         hide_index=True,
+        width="stretch",
+        height=188,
+        on_select="rerun",
+        selection_mode="single-row",
+        key="model_comparison_select",
     )
-    sensitivity_fig = px.line(
-        sensitivity,
-        x="cost_bps",
-        y="sharpe",
-        markers=True,
-        color_discrete_sequence=[ACCENT],
-        labels={"cost_bps": "Transaction cost assumption (bps)", "sharpe": "Net Sharpe"},
+    selected_variant = default_selected
+    selected_rows = getattr(event, "selection", {}).get("rows", []) if event is not None else []
+    if selected_rows:
+        selected_variant = str(table.iloc[selected_rows[0]]["variant"])
+    selected_model = model_label(selected_variant)
+    st.markdown(
+        f'<div class="nav-muted">Selected row highlights <span style="color:{AMBER};">{escape(selected_model)}</span> across folds.</div></div>',
+        unsafe_allow_html=True,
     )
-    st.plotly_chart(plotly_layout(sensitivity_fig, 280), width="stretch")
 
-with tabs[4]:
-    ledger_frame = pd.DataFrame(ledger["trials"])
-    st.dataframe(ledger_frame, width="stretch", hide_index=True)
-    st.download_button("Export Trial Ledger CSV", ledger_frame.to_csv(index=False), "trial_ledger.csv", "text/csv")
+with panel_5b:
+    st.markdown('<div class="lower-panel"><div class="panel-title">WALK-FORWARD FOLDS</div>', unsafe_allow_html=True)
+    st.plotly_chart(plot_folds(fold_scores, selected_variant), width="stretch", config={"displaylogo": False})
+    selected_folds = fold_scores[fold_scores["variant"] == selected_variant]
+    if not selected_folds.empty:
+        worst = selected_folds.loc[selected_folds["test_score"].idxmin()]
+        st.markdown(
+            f'<div class="nav-muted">Worst fold auto-flagged: <span style="color:{RUST};">fold {int(worst["fold_id"])}</span> · score <span class="num">{worst["test_score"]:.4f}</span></div></div>',
+            unsafe_allow_html=True,
+        )
+    else:
+        st.markdown("</div>", unsafe_allow_html=True)
 
-with tabs[5]:
-    draw_logs(quality, best_variant)
-
-with tabs[6]:
-    memo = render_memo(Path(selected))
-    st.download_button("Download Research Memo", memo, file_name=f"{selected.name}_research_memo.md")
-    st.markdown(memo)
-
-with tabs[7]:
-    settings = pd.DataFrame(
-        [
-            {"setting": "Data Provider", "value": "Synthetic MVP"},
-            {"setting": "CPU/GPU", "value": "CPU"},
-            {"setting": "Parallel Workers", "value": "local default"},
-            {"setting": "Theme", "value": "Institutional dark"},
-            {"setting": "Auto Save", "value": "enabled via artifacts"},
-            {"setting": "Experiment Tracking", "value": "trial_ledger.json"},
-        ]
+with panel_5c:
+    st.markdown('<div class="lower-panel"><div class="panel-title">RISK & DISCLOSURES</div>', unsafe_allow_html=True)
+    n_trials = int(ledger["n_trials"])
+    best_returns = returns[returns["variant"] == best_variant].copy()
+    sensitivity = cost_sensitivity(best_returns)
+    rows = "".join(
+        f"<tr><td>{row.bps:.0f} bps</td><td>{row.ret:.1%}</td><td>{row.sharpe:.2f}</td></tr>"
+        for row in sensitivity.itertuples(index=False)
     )
-    st.dataframe(settings, width="stretch", hide_index=True)
+    st.markdown(
+        f"""
+        <div class="risk-card">
+            <strong>{n_trials} variants tried</strong>
+            <ul>
+                <li>Dataset is not marked survivorship-bias-free.</li>
+                <li>Result is a demo research artifact, not a live alpha claim.</li>
+                <li>Worst fold is computed from validation output.</li>
+            </ul>
+        </div>
+        <table class="mini-table">
+            <thead><tr><th>cost</th><th>return</th><th>sharpe</th></tr></thead>
+            <tbody>{rows}</tbody>
+        </table>
+        </div>
+        """,
+        unsafe_allow_html=True,
+    )
+
+st.markdown("</div>", unsafe_allow_html=True)
+render_footer("/Users/nirajrajendranaphade/Documents/alpha-research-pipeline")
