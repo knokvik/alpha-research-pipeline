@@ -22,14 +22,45 @@ from alpha_pipeline.memo import render_memo
 
 
 DEFAULT_ARTIFACT_ROOT = Path("artifacts")
-BG = "#0F1417"
-PANEL = "#171D22"
-BORDER = "#262E35"
-AMBER = "#D4A24C"
-SAGE = "#7FA087"
-RUST = "#C1594A"
-TEXT = "#E8E6E1"
-MUTED = "#8B939E"
+THEMES = {
+    "Dark": {
+        "BG": "#0F1417",
+        "PANEL": "#171D22",
+        "PANEL_ALT": "#13191D",
+        "CONTROL": "#12181C",
+        "BORDER": "#262E35",
+        "AMBER": "#D4A24C",
+        "SAGE": "#7FA087",
+        "RUST": "#C1594A",
+        "TEXT": "#E8E6E1",
+        "MUTED": "#8B939E",
+        "CHART_TEMPLATE": "plotly_dark",
+    },
+    "Light": {
+        "BG": "#F3F0E8",
+        "PANEL": "#FBF8EF",
+        "PANEL_ALT": "#EFE9DC",
+        "CONTROL": "#FFFDF7",
+        "BORDER": "#CFC7B9",
+        "AMBER": "#A96F1D",
+        "SAGE": "#54775D",
+        "RUST": "#A5483D",
+        "TEXT": "#20242A",
+        "MUTED": "#68717C",
+        "CHART_TEMPLATE": "plotly_white",
+    },
+}
+BG = THEMES["Dark"]["BG"]
+PANEL = THEMES["Dark"]["PANEL"]
+PANEL_ALT = THEMES["Dark"]["PANEL_ALT"]
+CONTROL = THEMES["Dark"]["CONTROL"]
+BORDER = THEMES["Dark"]["BORDER"]
+AMBER = THEMES["Dark"]["AMBER"]
+SAGE = THEMES["Dark"]["SAGE"]
+RUST = THEMES["Dark"]["RUST"]
+TEXT = THEMES["Dark"]["TEXT"]
+MUTED = THEMES["Dark"]["MUTED"]
+CHART_TEMPLATE = THEMES["Dark"]["CHART_TEMPLATE"]
 
 
 st.set_page_config(
@@ -40,14 +71,28 @@ st.set_page_config(
 )
 
 
-def install_theme() -> None:
+def install_theme(theme_name: str) -> None:
+    global BG, PANEL, PANEL_ALT, CONTROL, BORDER, AMBER, SAGE, RUST, TEXT, MUTED, CHART_TEMPLATE
+    palette = THEMES[theme_name]
+    BG = palette["BG"]
+    PANEL = palette["PANEL"]
+    PANEL_ALT = palette["PANEL_ALT"]
+    CONTROL = palette["CONTROL"]
+    BORDER = palette["BORDER"]
+    AMBER = palette["AMBER"]
+    SAGE = palette["SAGE"]
+    RUST = palette["RUST"]
+    TEXT = palette["TEXT"]
+    MUTED = palette["MUTED"]
+    CHART_TEMPLATE = palette["CHART_TEMPLATE"]
     st.markdown(
         f"""
         <style>
-        @import url('https://fonts.googleapis.com/css2?family=IBM+Plex+Mono:wght@400;500;600;700&family=Libre+Baskerville:wght@400;700&family=Inter:wght@400;500;600;700;800&display=swap');
         :root {{
             --bg: {BG};
             --panel: {PANEL};
+            --panel-alt: {PANEL_ALT};
+            --control: {CONTROL};
             --border: {BORDER};
             --amber: {AMBER};
             --sage: {SAGE};
@@ -63,15 +108,10 @@ def install_theme() -> None:
             max-width: 1560px;
             padding: 12px 22px 18px 22px;
         }}
-        html, body, [class*="css"] {{
-            font-family: Inter, -apple-system, BlinkMacSystemFont, sans-serif;
-        }}
-        .da-title, .section-display, .panel-title {{
-            font-family: "Libre Baskerville", Georgia, serif;
-            letter-spacing: 0.02em;
-        }}
-        .num, [data-testid="stMetricValue"], [data-testid="stMetricDelta"], table {{
-            font-family: "IBM Plex Mono", ui-monospace, SFMono-Regular, Menlo, monospace !important;
+        html, body, [class*="css"], .stApp, button, input, textarea, select,
+        .da-title, .section-display, .panel-title, .num,
+        [data-testid="stMetricValue"], [data-testid="stMetricDelta"], table {{
+            font-family: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace !important;
         }}
         .block {{
             background: {PANEL};
@@ -108,7 +148,7 @@ def install_theme() -> None:
             justify-self: center;
             color: {TEXT};
             border: 1px solid {BORDER};
-            background: #12181C;
+            background: {CONTROL};
             padding: 8px 14px;
             font-size: 0.84rem;
             min-width: 270px;
@@ -126,14 +166,13 @@ def install_theme() -> None:
             color: {SAGE};
             border: 1px solid rgba(127, 160, 135, 0.45);
             padding: 4px 8px;
-            font-family: "IBM Plex Mono", monospace;
             font-weight: 700;
         }}
         .nav-button {{
             border: 1px solid {BORDER};
             padding: 6px 9px;
             color: {TEXT};
-            background: #12181C;
+            background: {CONTROL};
             font-size: 0.78rem;
         }}
         .tab-strip {{
@@ -166,7 +205,6 @@ def install_theme() -> None:
         }}
         .timestamp {{
             color: {MUTED};
-            font-family: "IBM Plex Mono", monospace;
             font-size: 0.74rem;
             margin-left: 12px;
         }}
@@ -187,7 +225,7 @@ def install_theme() -> None:
         }}
         .toggle .on {{
             color: {AMBER};
-            background: #1E2328;
+            background: {PANEL_ALT};
         }}
         .hero-shell {{
             min-height: 55vh;
@@ -198,7 +236,7 @@ def install_theme() -> None:
         .hero-sidebar {{
             border-right: 1px solid {BORDER};
             padding: 18px 16px;
-            background: #13191D;
+            background: {PANEL_ALT};
         }}
         .hero-label {{
             color: {MUTED};
@@ -218,7 +256,6 @@ def install_theme() -> None:
         }}
         .hero-stat .v {{
             color: {AMBER};
-            font-family: "IBM Plex Mono", monospace;
             font-size: 1.45rem;
             font-weight: 700;
         }}
@@ -276,7 +313,7 @@ def install_theme() -> None:
         }}
         .risk-card {{
             border-left: 3px solid {RUST};
-            background: #151A1E;
+            background: {PANEL_ALT};
             padding: 12px;
             min-height: 112px;
             color: {TEXT};
@@ -292,7 +329,6 @@ def install_theme() -> None:
             width: 100%;
             border-collapse: collapse;
             margin-top: 12px;
-            font-family: "IBM Plex Mono", monospace;
             font-size: 0.76rem;
         }}
         .mini-table th, .mini-table td {{
@@ -325,11 +361,26 @@ def install_theme() -> None:
             font-size: 0.78rem;
         }}
         div[data-testid="stDownloadButton"] button {{
-            background: #12181C;
+            background: {CONTROL};
             border: 1px solid {BORDER};
             color: {TEXT};
             border-radius: 0;
             height: 34px;
+        }}
+        div[data-testid="stRadio"] {{
+            border: 1px solid {BORDER};
+            background: {PANEL};
+            padding: 4px 8px;
+        }}
+        div[data-testid="stRadio"] label {{
+            color: {TEXT};
+        }}
+        div[data-testid="stCheckbox"] [data-testid="stWidgetLabel"] p,
+        div[data-testid="stRadio"] [data-testid="stWidgetLabel"] p {{
+            color: {MUTED};
+        }}
+        div[data-testid="stDataFrame"] * {{
+            font-family: "SF Mono", "SFMono-Regular", ui-monospace, Menlo, Monaco, Consolas, monospace !important;
         }}
         div[data-testid="stDataFrame"] {{
             border: 1px solid {BORDER};
@@ -506,15 +557,15 @@ def plot_decay(decay: pd.DataFrame, selected_model: str) -> go.Figure:
         )
 
     fig.update_layout(
-        template="plotly_dark",
+        template=CHART_TEMPLATE,
         height=520,
         paper_bgcolor=PANEL,
         plot_bgcolor=PANEL,
         title={
             "text": "DEFLATED SHARPE DECAY CHART",
-            "font": {"family": "Libre Baskerville, Georgia, serif", "size": 20, "color": TEXT},
+            "font": {"family": "SF Mono, SFMono-Regular, ui-monospace, Menlo, monospace", "size": 20, "color": TEXT},
         },
-        font={"family": "IBM Plex Mono, monospace", "color": TEXT, "size": 12},
+        font={"family": "SF Mono, SFMono-Regular, ui-monospace, Menlo, monospace", "color": TEXT, "size": 12},
         margin={"l": 52, "r": 28, "t": 64, "b": 54},
         hovermode="x unified",
         legend={"orientation": "h", "y": 1.08, "x": 0.42},
@@ -546,11 +597,11 @@ def plot_folds(fold_scores: pd.DataFrame, selected_variant: str) -> go.Figure:
         )
     )
     fig.update_layout(
-        template="plotly_dark",
+        template=CHART_TEMPLATE,
         height=238,
         paper_bgcolor=PANEL,
         plot_bgcolor=PANEL,
-        font={"family": "IBM Plex Mono, monospace", "color": TEXT, "size": 11},
+        font={"family": "SF Mono, SFMono-Regular, ui-monospace, Menlo, monospace", "color": TEXT, "size": 11},
         margin={"l": 34, "r": 12, "t": 10, "b": 34},
     )
     fig.update_xaxes(title="Fold", gridcolor=BORDER, zerolinecolor=BORDER)
@@ -594,6 +645,13 @@ def render_top_nav(dataset_label: str, memo: str) -> None:
             </div>
             """,
             unsafe_allow_html=True,
+        )
+        st.radio(
+            "Theme",
+            ["Dark", "Light"],
+            horizontal=True,
+            key="theme_mode",
+            label_visibility="collapsed",
         )
         st.download_button("Export Report", memo, file_name="deflatedalpha_report.md", key="nav_export")
 
@@ -650,7 +708,10 @@ def render_footer(repo_label: str) -> None:
     )
 
 
-install_theme()
+theme_name = st.session_state.get("theme_mode", "Dark")
+if theme_name not in THEMES:
+    theme_name = "Dark"
+install_theme(theme_name)
 
 experiments = discover_experiments()
 if not experiments:
