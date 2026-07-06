@@ -126,6 +126,60 @@ def install_theme() -> None:
             padding: 16px;
             box-shadow: 0 14px 34px rgba(0,0,0,0.16);
         }}
+        .verdict {{
+            border: 1px solid rgba(76, 201, 240, 0.26);
+            border-radius: 14px;
+            background:
+                linear-gradient(135deg, rgba(76, 201, 240, 0.10), rgba(167, 139, 250, 0.055)),
+                {PANEL};
+            padding: 16px 18px;
+            margin: 14px 0 18px 0;
+            box-shadow: 0 16px 40px rgba(0,0,0,0.18);
+        }}
+        .verdict-kicker {{
+            color: {ACCENT};
+            font-size: 0.74rem;
+            font-weight: 760;
+            letter-spacing: 0.07em;
+            text-transform: uppercase;
+            margin-bottom: 6px;
+        }}
+        .verdict-title {{
+            color: #F0F6FC;
+            font-size: 1.22rem;
+            font-weight: 800;
+            margin-bottom: 6px;
+        }}
+        .verdict-body {{
+            color: #B8C1CC;
+            font-size: 0.92rem;
+            line-height: 1.52;
+            max-width: 1120px;
+        }}
+        .why-grid {{
+            display: grid;
+            grid-template-columns: repeat(3, minmax(0, 1fr));
+            gap: 10px;
+            margin: 10px 0 18px 0;
+        }}
+        .why-card {{
+            border: 1px solid rgba(139, 148, 158, 0.16);
+            border-radius: 12px;
+            background: #111720;
+            padding: 12px;
+            min-height: 104px;
+        }}
+        .why-card strong {{
+            color: #F0F6FC;
+            display: block;
+            font-size: 0.88rem;
+            margin-bottom: 6px;
+        }}
+        .why-card span {{
+            color: {TEXT_MUTED};
+            font-size: 0.81rem;
+            line-height: 1.45;
+        }}
         .status-badge {{
             display: inline-flex;
             align-items: center;
@@ -351,6 +405,57 @@ def rolling_sharpe(daily: pd.DataFrame, window: int = 63) -> pd.DataFrame:
     return frame.dropna(subset=["rolling_sharpe"])
 
 
+def annualized_sharpe(returns: pd.Series) -> float:
+    std = returns.std(ddof=0)
+    if std <= 0:
+        return 0.0
+    return float(returns.mean() / std * np.sqrt(252))
+
+
+def cost_sensitivity(daily: pd.DataFrame, bps_values: tuple[float, ...] = (0.0, 5.0, 10.0, 20.0, 50.0)) -> pd.DataFrame:
+    rows = []
+    for bps in bps_values:
+        net_return = daily["gross_return"] - daily["turnover"] * (bps / 10_000.0)
+        equity = (1.0 + net_return).cumprod()
+        drawdown = equity / equity.cummax() - 1.0
+        rows.append(
+            {
+                "cost_bps": bps,
+                "total_return": float(equity.iloc[-1] - 1.0),
+                "sharpe": annualized_sharpe(net_return),
+                "max_drawdown": float(drawdown.min()),
+                "avg_daily_cost": float((daily["turnover"] * (bps / 10_000.0)).mean()),
+            }
+        )
+    return pd.DataFrame(rows)
+
+
+def verdict_copy(best_metrics: dict[str, object], ledger: dict[str, object]) -> tuple[str, str]:
+    raw_sharpe = metric_value(best_metrics, ("performance", "sharpe"))
+    deflated = metric_value(best_metrics, ("deflated_sharpe", "deflated_sharpe"))
+    dsr_probability = metric_value(best_metrics, ("deflated_sharpe", "probability"))
+    total_return = metric_value(best_metrics, ("performance", "total_return"))
+    mean_ic = metric_value(best_metrics, ("information_coefficient", "mean_rank_ic"))
+    n_trials = int(ledger["n_trials"])
+
+    if raw_sharpe < 0.5 and total_return < 0.03:
+        title = "Honesty verdict: this run is a null result, not a production alpha."
+        body = (
+            f"Raw Sharpe is {raw_sharpe:.2f}, portfolio return is {total_return:.1%}, and the signal was tested "
+            f"across {n_trials} disclosed variants. Mean rank IC is {mean_ic:.3f}, so the model has a faint ranking "
+            f"signal, but the economic result is too weak to present as a real edge. The deflated Sharpe spread is "
+            f"{deflated:.2f}; DSR probability is {dsr_probability:.1%}."
+        )
+    else:
+        title = "Honesty verdict: this run deserves deeper validation before any alpha claim."
+        body = (
+            f"Raw Sharpe is {raw_sharpe:.2f} across {n_trials} disclosed variants. The corrected result is still the "
+            f"number to trust: deflated Sharpe spread {deflated:.2f}, DSR probability {dsr_probability:.1%}, and mean "
+            f"rank IC {mean_ic:.3f}. Treat this as research evidence, not a trading conclusion."
+        )
+    return title, body
+
+
 install_theme()
 
 experiments = discover_experiments()
@@ -386,13 +491,25 @@ draw_topbar(
 
 st.markdown('<span class="status-badge">Research workstation · Local artifacts · No live trading</span>', unsafe_allow_html=True)
 
+verdict_title, verdict_body = verdict_copy(best_metrics, ledger)
+st.markdown(
+    f"""
+    <div class="verdict">
+        <div class="verdict-kicker">Research Interpretation</div>
+        <div class="verdict-title">{verdict_title}</div>
+        <div class="verdict-body">{verdict_body}</div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
+
 kpi_cols = st.columns(6)
 kpi_cols[0].metric("Universe", f"{quality['n_assets']} assets", f"{quality['n_rows']:,} rows")
 kpi_cols[1].metric("Factors", len(metrics["feature_columns"]), "lagged + normalized")
 kpi_cols[2].metric("Model", best_variant.replace("_", " "), "selected by DSR")
 kpi_cols[3].metric("Training Status", "Complete", "all folds finished")
 kpi_cols[4].metric("Raw Sharpe", f"{best_metrics['performance']['sharpe']:.2f}", "net of costs")
-kpi_cols[5].metric("Deflated Sharpe", f"{best_metrics['deflated_sharpe']['deflated_sharpe']:.2f}", f"{ledger['n_trials']} variants")
+kpi_cols[5].metric("DSR Probability", f"{best_metrics['deflated_sharpe']['probability']:.1%}", f"{ledger['n_trials']} variants")
 
 kpi_cols = st.columns(6)
 kpi_cols[0].metric("Portfolio Return", f"{best_metrics['performance']['total_return']:.1%}")
@@ -400,7 +517,30 @@ kpi_cols[1].metric("Drawdown", f"{best_metrics['performance']['max_drawdown']:.1
 kpi_cols[2].metric("Transaction Costs", f"{config['transaction_cost_bps']:.1f} bps")
 kpi_cols[3].metric("Runtime", "11.8s", "demo artifact")
 kpi_cols[4].metric("Mean Rank IC", f"{best_metrics['information_coefficient']['mean_rank_ic']:.3f}")
-kpi_cols[5].metric("ICIR", f"{best_metrics['information_coefficient']['icir']:.2f}")
+kpi_cols[5].metric("Deflated Sharpe Spread", f"{best_metrics['deflated_sharpe']['deflated_sharpe']:.2f}", "raw minus benchmark")
+
+st.markdown(
+    f"""
+    <div class="why-grid">
+        <div class="why-card">
+            <strong>Economic signal</strong>
+            <span>Raw Sharpe {best_metrics['performance']['sharpe']:.2f} and total return {best_metrics['performance']['total_return']:.1%}
+            mean the current demo result is economically weak.</span>
+        </div>
+        <div class="why-card">
+            <strong>Ranking skill</strong>
+            <span>Mean rank IC {best_metrics['information_coefficient']['mean_rank_ic']:.3f} with ICIR
+            {best_metrics['information_coefficient']['icir']:.2f} suggests faint ranking information, not enough edge yet.</span>
+        </div>
+        <div class="why-card">
+            <strong>Research honesty</strong>
+            <span>{ledger['n_trials']} variants are disclosed, survivorship status is flagged, and the dashboard separates
+            raw Sharpe from DSR probability.</span>
+        </div>
+    </div>
+    """,
+    unsafe_allow_html=True,
+)
 
 left, right = st.columns((2.15, 1))
 with left:
@@ -455,6 +595,7 @@ with tabs[0]:
     with stat_cols[1]:
         rolling_fig = px.line(rolling_sharpe(best_returns), x="date", y="rolling_sharpe", color_discrete_sequence=[ACCENT])
         st.plotly_chart(plotly_layout(rolling_fig, 330), width="stretch")
+    st.caption("DSR probability is a probability; deflated Sharpe spread is the raw Sharpe minus the multiple-testing benchmark.")
 
 with tabs[1]:
     st.dataframe(fold_scores, width="stretch", hide_index=True)
@@ -478,6 +619,27 @@ with tabs[3]:
     st.plotly_chart(plotly_layout(monthly_fig, 320), width="stretch")
     dd_fig = px.area(dd_frame, x="date", y="drawdown", color_discrete_sequence=["#A78BFA"])
     st.plotly_chart(plotly_layout(dd_fig, 300), width="stretch")
+    sensitivity = cost_sensitivity(best_returns)
+    st.markdown('<div class="section-title">Cost Sensitivity</div>', unsafe_allow_html=True)
+    st.dataframe(
+        sensitivity.assign(
+            total_return=lambda frame: frame["total_return"].map(lambda value: f"{value:.1%}"),
+            sharpe=lambda frame: frame["sharpe"].map(lambda value: f"{value:.2f}"),
+            max_drawdown=lambda frame: frame["max_drawdown"].map(lambda value: f"{value:.1%}"),
+            avg_daily_cost=lambda frame: frame["avg_daily_cost"].map(lambda value: f"{value:.4%}"),
+        ),
+        width="stretch",
+        hide_index=True,
+    )
+    sensitivity_fig = px.line(
+        sensitivity,
+        x="cost_bps",
+        y="sharpe",
+        markers=True,
+        color_discrete_sequence=[ACCENT],
+        labels={"cost_bps": "Transaction cost assumption (bps)", "sharpe": "Net Sharpe"},
+    )
+    st.plotly_chart(plotly_layout(sensitivity_fig, 280), width="stretch")
 
 with tabs[4]:
     ledger_frame = pd.DataFrame(ledger["trials"])
