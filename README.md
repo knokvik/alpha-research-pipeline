@@ -17,6 +17,13 @@ Most quant pipelines report a single backtest Sharpe without disclosing how many
 
 The following results were captured from the reproducible demo experiment at `artifacts/demo/`, generated from deterministic synthetic market data. All figures in the HTML dashboard load from `metrics.json` — nothing is hardcoded.
 
+![Cumulative Gross Return](docs/equity_curve.png)
+
+![Raw vs Deflated Sharpe](docs/variant_comparison.png)
+
+![Walk-Forward Fold Scores](docs/fold_scores.png)
+
+
 ### Configuration
 
 | Parameter | Value |
@@ -74,18 +81,6 @@ Net performance for the best variant under alternate transaction-cost assumption
 The useful result is not a standalone Sharpe ratio. The useful result is the gap between raw performance and the deflated result after disclosing all tested variants. In this demo, `boosting_hist_depth_3` shows a modest positive deflated Sharpe and high DSR probability relative to the linear baseline, but absolute performance remains small.
 
 > **Note on data limitations:** The built-in demo uses synthetic data for full reproducibility without API keys or data-vendor credentials. The universe is not survivorship-bias-free and is not a substitute for institutional point-in-time data. The pipeline proves the research machinery — leakage controls, validation, backtesting, statistics, and reporting — not live equity alpha.
-
-### Charts
-
-Generated from `artifacts/demo/` by the dashboard report builder.
-
-![Deflated Sharpe Decay](docs/sharpe_decay.png)
-
-![Raw vs Deflated Sharpe](docs/variant_comparison.png)
-
-![Walk-Forward Fold Scores](docs/fold_scores.png)
-
-![Cumulative Gross Return](docs/equity_curve.png)
 
 ### Dashboard Screenshots
 
