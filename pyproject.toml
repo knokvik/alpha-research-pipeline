@@ -13,7 +13,6 @@ dependencies = [
     "pandas>=2.0",
     "scipy>=1.10",
     "scikit-learn>=1.3",
-    "streamlit>=1.32",
     "plotly>=5.18",
     "pyarrow>=14.0",
 ]
@@ -34,9 +33,14 @@ data = [
 [project.scripts]
 alpha-demo = "alpha_pipeline.cli:main"
 alpha-memo = "alpha_pipeline.memo:main"
+alpha-dashboard = "dashboard.__main__:main"
 
-[tool.setuptools.packages.find]
-where = ["src"]
+[tool.setuptools]
+packages = ["alpha_pipeline", "dashboard"]
+
+[tool.setuptools.package-dir]
+alpha_pipeline = "src/alpha_pipeline"
+dashboard = "dashboard"
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
