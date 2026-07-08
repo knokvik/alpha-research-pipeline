@@ -38,28 +38,45 @@ ARTIFACT_DESCRIPTIONS = {
 }
 
 STYLES = """
+* { box-sizing: border-box; }
+html, body { width: 100%; margin: 0; padding: 0; overflow-x: hidden; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
-       margin: 0; background: #fff; color: #1a1a1a; line-height: 1.5; }
-.wrap { max-width: 1200px; margin: 0 auto; padding: 32px 24px 48px; }
-h1 { font-size: 1.75rem; margin: 0 0 8px; }
-h2 { font-size: 1.2rem; margin: 36px 0 12px; border-bottom: 1px solid #e5e7eb; padding-bottom: 6px; }
-h3 { font-size: 1rem; margin: 20px 0 8px; }
-.meta { color: #6b7280; font-size: 0.9rem; margin-bottom: 20px; }
-.note { background: #f9fafb; border: 1px solid #e5e7eb; padding: 14px 16px; margin: 16px 0; }
-.warn { background: #fffbeb; border: 1px solid #fcd34d; padding: 12px 14px; margin: 16px 0; }
-.metrics { display: grid; grid-template-columns: repeat(auto-fit, minmax(150px, 1fr)); gap: 12px; margin: 16px 0 24px; }
-.metric { border: 1px solid #e5e7eb; padding: 12px 14px; }
+       background: #fff; color: #1a1a1a; line-height: 1.5; }
+.wrap { width: 100%; max-width: 100%; margin: 0; padding: 0; }
+.header { width: 100%; padding: 20px 0 12px; border-bottom: 1px solid #e5e7eb; }
+.header h1 { font-size: 1.75rem; margin: 0 0 8px; padding: 0 16px; }
+.meta { color: #6b7280; font-size: 0.9rem; margin: 0; padding: 0 16px 12px; }
+.section { width: 100%; padding: 20px 0; border-bottom: 1px solid #f3f4f6; }
+.section h2 { font-size: 1.2rem; margin: 0 0 12px; padding: 0 16px 8px; border-bottom: 1px solid #e5e7eb; }
+.section h3 { font-size: 1rem; margin: 20px 0 8px; padding: 0 16px; }
+.section p, .section ol, .section ul { padding: 0 16px; margin: 8px 0; }
+.note { background: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;
+        padding: 14px 16px; margin: 0; width: 100%; }
+.warn { background: #fffbeb; border-top: 1px solid #fcd34d; border-bottom: 1px solid #fcd34d;
+        padding: 12px 16px; margin: 0; width: 100%; }
+.metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; margin: 0; width: 100%;
+           border-bottom: 1px solid #e5e7eb; }
+.metric { border-right: 1px solid #e5e7eb; padding: 14px 16px; }
+.metric:last-child { border-right: none; }
 .metric .k { color: #6b7280; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
-.metric .v { font-size: 1.15rem; font-weight: 600; margin-top: 4px; }
-.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin: 16px 0; }
-.chart { border: 1px solid #e5e7eb; padding: 8px; min-width: 0; }
-table.data { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 12px 0; }
-table.data th, table.data td { border-bottom: 1px solid #e5e7eb; padding: 8px 10px; text-align: left; }
+.metric .v { font-size: 1.15rem; font-weight: 600; margin-top: 4px; word-break: break-word; }
+.charts { display: grid; grid-template-columns: 1fr 1fr; gap: 0; margin: 0; width: 100%; }
+.chart { border-right: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb; padding: 0; min-width: 0; }
+.chart:last-child { border-right: none; }
+.chart .plotly-graph-div { width: 100% !important; }
+.table-wrap { width: 100%; overflow-x: auto; }
+table.data { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 0; }
+table.data th, table.data td { border-bottom: 1px solid #e5e7eb; padding: 10px 16px; text-align: left; }
 table.data th { background: #f9fafb; font-weight: 600; }
-pre.memo { background: #f9fafb; border: 1px solid #e5e7eb; padding: 16px; overflow-x: auto; font-size: 0.85rem; white-space: pre-wrap; }
-ul { padding-left: 20px; }
-ol { padding-left: 20px; }
-@media (max-width: 900px) { .charts { grid-template-columns: 1fr; } }
+pre.memo { background: #f9fafb; border: none; border-top: 1px solid #e5e7eb; padding: 16px;
+           overflow-x: auto; font-size: 0.85rem; white-space: pre-wrap; margin: 0; width: 100%; }
+.features { padding: 0 16px 8px; }
+@media (max-width: 900px) {
+  .metrics { grid-template-columns: repeat(2, 1fr); }
+  .metric { border-bottom: 1px solid #e5e7eb; }
+  .charts { grid-template-columns: 1fr; }
+  .chart { border-right: none; }
+}
 """
 
 
@@ -168,6 +185,8 @@ def plot_decay(decay: pd.DataFrame) -> go.Figure:
         xaxis_title="Correction stage",
         yaxis_title="Sharpe",
         height=400,
+        autosize=True,
+        width=None,
         margin={"l": 40, "r": 20, "t": 50, "b": 40},
         legend={"orientation": "h", "y": 1.12, "x": 0},
     )
@@ -191,6 +210,8 @@ def plot_folds(fold_scores: pd.DataFrame, variant: str) -> go.Figure:
         xaxis_title="Fold",
         yaxis_title="Out-of-sample score",
         height=360,
+        autosize=True,
+        width=None,
         margin={"l": 40, "r": 20, "t": 50, "b": 40},
     )
     return fig
@@ -214,6 +235,8 @@ def plot_equity(returns: pd.DataFrame, variant: str) -> go.Figure:
         xaxis_title="Date",
         yaxis_title="Equity (start = 1)",
         height=360,
+        autosize=True,
+        width=None,
         margin={"l": 40, "r": 20, "t": 50, "b": 40},
     )
     return fig
@@ -316,6 +339,15 @@ def build_report(experiment_dir: Path | str, output: Path | str | None = None) -
             "Replace with point-in-time data before live claims.</div>"
         )
 
+    validation_metrics = f"""<div class="metrics">
+      {metric_card("Train Window", f"{config['train_window_days']} days")}
+      {metric_card("Test Window", f"{config['test_window_days']} days")}
+      {metric_card("Step", f"{config['step_days']} days")}
+      {metric_card("Embargo", f"{config['embargo_days']} days")}
+      {metric_card("Rebalance", str(config.get("rebalance_frequency", "—")))}
+      {metric_card("Txn Cost", f"{config['transaction_cost_bps']} bps")}
+    </div>"""
+
     html = f"""<!DOCTYPE html>
 <html lang="en">
 <head>
@@ -326,63 +358,74 @@ def build_report(experiment_dir: Path | str, output: Path | str | None = None) -
 </head>
 <body>
   <div class="wrap">
-    <h1>Cross-Sectional Alpha Research Pipeline</h1>
-    <p class="meta">Experiment <strong>{escape(root.name)}</strong> · sample {escape(quality['start_date'])} to {escape(quality['end_date'])} · generated {escape(generated_at)}</p>
+    <div class="header">
+      <h1>Cross-Sectional Alpha Research Pipeline</h1>
+      <p class="meta">Experiment <strong>{escape(root.name)}</strong> · sample {escape(quality['start_date'])} to {escape(quality['end_date'])} · generated {escape(generated_at)}</p>
+    </div>
     <div class="note">End-to-end quantitative research pipeline focused on statistical rigor. All figures and tables are loaded from persisted experiment artifacts — nothing is hardcoded.</div>
 
-    <h2>Executive Summary</h2>
-    <div class="metrics">
-      {metric_card("Best Variant", best_variant)}
-      {metric_card("Raw Sharpe", f"{perf['sharpe']:.2f}")}
-      {metric_card("Deflated Sharpe", f"{dsr['deflated_sharpe']:.2f}")}
-      {metric_card("DSR Probability", f"{dsr['probability']:.1%}")}
-      {metric_card("Mean Rank IC", f"{ic['mean_rank_ic']:.3f}")}
-      {metric_card("Trials Logged", str(ledger['n_trials']))}
-    </div>
-    {warning}
-
-    <h2>Pipeline Structure</h2>
-    <ol>
-      <li><strong>Data</strong> — {quality['n_assets']} synthetic equities, {quality['n_rows']:,} rows</li>
-      <li><strong>Features</strong> — {len(metrics.get('feature_columns', []))} lagged cross-sectional factors</li>
-      <li><strong>Models</strong> — {escape(', '.join(config.get('model_variants', [])))}</li>
-      <li><strong>Validation</strong> — purged walk-forward (train {config['train_window_days']}d / test {config['test_window_days']}d)</li>
-      <li><strong>Portfolio</strong> — dollar-neutral long-short, {config['transaction_cost_bps']} bps transaction cost</li>
-      <li><strong>Reporting</strong> — metrics, trial ledger, memo, HTML dashboard</li>
-    </ol>
-
-    <h2>Model Comparison</h2>
-    {df_html(comparison)}
-
-    <h2>Charts</h2>
-    <div class="charts">
-      {chart_blocks[0]}
-      {chart_blocks[1]}
-    </div>
-    <div class="charts">
-      {chart_blocks[2]}
-      <div class="chart"><h3>Cost Sensitivity</h3>{df_html(cost_sensitivity(best_returns))}</div>
+    <div class="section">
+      <h2>Executive Summary</h2>
+      <div class="metrics">
+        {metric_card("Best Variant", best_variant)}
+        {metric_card("Raw Sharpe", f"{perf['sharpe']:.2f}")}
+        {metric_card("Deflated Sharpe", f"{dsr['deflated_sharpe']:.2f}")}
+        {metric_card("DSR Probability", f"{dsr['probability']:.1%}")}
+        {metric_card("Mean Rank IC", f"{ic['mean_rank_ic']:.3f}")}
+        {metric_card("Trials Logged", str(ledger['n_trials']))}
+      </div>
+      {warning}
     </div>
 
-    <h2>Validation</h2>
-    <div class="metrics">
-      {metric_card("Train Window", f"{config['train_window_days']} days")}
-      {metric_card("Test Window", f"{config['test_window_days']} days")}
-      {metric_card("Step", f"{config['step_days']} days")}
-      {metric_card("Embargo", f"{config['embargo_days']} days")}
+    <div class="section">
+      <h2>Pipeline Structure</h2>
+      <ol>
+        <li><strong>Data</strong> — {quality['n_assets']} synthetic equities, {quality['n_rows']:,} rows</li>
+        <li><strong>Features</strong> — {len(metrics.get('feature_columns', []))} lagged cross-sectional factors</li>
+        <li><strong>Models</strong> — {escape(', '.join(config.get('model_variants', [])))}</li>
+        <li><strong>Validation</strong> — purged walk-forward (train {config['train_window_days']}d / test {config['test_window_days']}d)</li>
+        <li><strong>Portfolio</strong> — dollar-neutral long-short, {config['transaction_cost_bps']} bps transaction cost</li>
+        <li><strong>Reporting</strong> — metrics, trial ledger, memo, HTML dashboard</li>
+      </ol>
     </div>
-    <h3>Walk-Forward Folds</h3>
-    {fold_html}
-    <h3>Feature Set</h3>
-    <p>{escape(', '.join(metrics.get('feature_columns', [])))}</p>
-    <h3>Trial Ledger</h3>
-    {df_html(trial_frame(ledger))}
 
-    <h2>Artifact Inventory</h2>
-    {df_html(artifact_table(root))}
+    <div class="section">
+      <h2>Model Comparison</h2>
+      <div class="table-wrap">{df_html(comparison)}</div>
+    </div>
 
-    <h2>Research Memo</h2>
-    <pre class="memo">{escape(memo)}</pre>
+    <div class="section">
+      <h2>Charts</h2>
+      <div class="charts">
+        {chart_blocks[0]}
+        {chart_blocks[1]}
+      </div>
+      <div class="charts">
+        {chart_blocks[2]}
+        <div class="chart"><div class="table-wrap" style="padding:12px 0 0">{df_html(cost_sensitivity(best_returns))}</div></div>
+      </div>
+    </div>
+
+    <div class="section">
+      <h2>Validation</h2>
+      {validation_metrics}
+      <h3>Walk-Forward Folds</h3>
+      <div class="table-wrap">{fold_html}</div>
+      <h3>Feature Set</h3>
+      <p class="features">{escape(', '.join(metrics.get('feature_columns', [])))}</p>
+      <h3>Trial Ledger</h3>
+      <div class="table-wrap">{df_html(trial_frame(ledger))}</div>
+    </div>
+
+    <div class="section">
+      <h2>Artifact Inventory</h2>
+      <div class="table-wrap">{df_html(artifact_table(root))}</div>
+    </div>
+
+    <div class="section">
+      <h2>Research Memo</h2>
+      <pre class="memo">{escape(memo)}</pre>
+    </div>
   </div>
 </body>
 </html>

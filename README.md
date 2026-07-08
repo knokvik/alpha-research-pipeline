@@ -1,71 +1,106 @@
 # Cross-Sectional Alpha Research Pipeline
 
-> **Proof of working system** — verified on this machine (2026-07-07):
-> - `pytest`: **10/10 tests passed**
-> - Demo experiment: `artifacts/demo/` with **14 output files** (metrics, trial ledger, folds, parquet panels)
-> - Best variant: `boosting_hist_depth_3` — raw Sharpe **0.02**, deflated Sharpe **0.04**, DSR probability **78.3%**
-> - Dashboard: `python -m dashboard serve` — generates HTML from artifacts and serves on localhost
+> **Verified on this machine (2026-07-08)**
+> - **Tests:** 10/10 passed (`pytest`)
+> - **Demo run:** `artifacts/demo/` — 14 output files, fully reproducible synthetic data
+> - **Best variant:** `boosting_hist_depth_3` — raw Sharpe 0.02, deflated Sharpe 0.04, DSR 78.3%
+> - **Dashboard:** `python -m dashboard serve` → http://127.0.0.1:8765/index.html (full-width HTML, Plotly charts, artifact-backed)
 
-An end-to-end quantitative research project focused on statistical rigor rather than a single attractive backtest. The pipeline builds cross-sectional factors, validates models with walk-forward and purged/embargoed splits, runs a cost-aware long-short backtest, and reports raw Sharpe alongside a deflated Sharpe that accounts for tested strategy variants.
+Statistically rigorous cross-sectional alpha research: factor engineering, purged walk-forward validation, cost-aware long-short backtesting, trial logging, deflated Sharpe, and an HTML research dashboard — all from persisted experiment artifacts.
+
+---
 
 ## Quick Start
 
 ```bash
+cd alpha-research-pipeline
 python -m venv .venv
 source .venv/bin/activate
 pip install -e ".[dev]"
+
+# Run the demo experiment
 python -m alpha_pipeline.cli --output artifacts/demo
+
+# View the dashboard (generates HTML + serves on localhost)
 python -m dashboard serve
 ```
 
-The default demo uses deterministic synthetic market data so the whole project can run without API keys or data-vendor credentials. Real point-in-time data can be added through the same long-form price and feature interfaces.
+Open **http://127.0.0.1:8765/index.html**
 
-## Dashboard (no Streamlit)
+---
 
-Generate a standalone HTML report:
+## Dashboard
 
-```bash
-python -m dashboard build --output reports/dashboard.html
-```
-
-Or generate and serve on localhost (default port `8765`):
+No Streamlit. Pure Python generates a standalone HTML report and serves it with the standard library.
 
 ```bash
+# Generate static HTML only
+python -m dashboard build
+python -m dashboard build --output reports/dashboard.html --experiment demo
+
+# Generate and serve on localhost
 python -m dashboard serve
-python -m dashboard serve --port 8080 --experiment demo
+python -m dashboard serve --port 8080
 ```
 
-Output is written to `artifacts/dashboard/index.html` by default. All charts use Plotly; all tables and metrics load from experiment artifacts.
+Default output: `artifacts/dashboard/index.html`
 
-## What This Project Optimizes For
+The page is **full-width** (100% horizontal). All metrics, tables, and Plotly charts load from `artifacts/<experiment>/` — nothing is hardcoded.
 
-- Out-of-sample rank IC and fold stability.
-- Transaction-cost-adjusted long-short performance.
-- Explicit trial logging for every tested model and parameter variant.
-- Deflated Sharpe, not just raw Sharpe.
-- Clear disclosure of data limitations, especially survivorship and point-in-time availability.
+---
 
-## Project Layout
+## What It Does
 
-```text
-src/alpha_pipeline/   Core research pipeline package
-dashboard/            HTML report generator + localhost server (stdlib only)
-tests/                Unit and integration tests
-reports/              Memo template and generated research notes
-artifacts/            Local experiment outputs, ignored by git
-```
+1. **Data** — synthetic liquid equity panel (demo) or pluggable price/feature interfaces
+2. **Features** — 16 lagged, cross-sectionally normalized price/volume factors
+3. **Models** — linear ridge and histogram-based boosting variants
+4. **Validation** — rolling walk-forward with label purging and embargo
+5. **Portfolio** — dollar-neutral long-short quantile book with flat transaction costs
+6. **Statistics** — raw Sharpe, deflated Sharpe, DSR probability, rank IC / ICIR
+7. **Reporting** — `metrics.json`, trial ledger, research memo, HTML dashboard
 
-## Demo Results (from `artifacts/demo/metrics.json`)
+---
+
+## Demo Results
+
+Source: `artifacts/demo/metrics.json`
 
 | Variant | Raw Sharpe | Deflated Sharpe | DSR Probability | Mean Rank IC |
 |---|---:|---:|---:|---:|
 | boosting_hist_depth_3 | 0.02 | 0.04 | 78.3% | 0.019 |
 | linear_ridge_alpha_1 | -0.28 | -0.26 | 0.0% | -0.002 |
 
-**Universe:** 40 synthetic equities · 36,000 rows · 2018-01-01 to 2021-06-11  
-**Validation:** 504-day train / 63-day test walk-forward with purged labels  
-**Trials disclosed:** 2 (linear + boosting)
+- **Universe:** 40 equities · 36,000 rows · 2018-01-01 to 2021-06-11
+- **Validation:** 504-day train / 63-day test walk-forward, purged labels
+- **Trials disclosed:** 2 (linear + boosting)
+- **Survivorship-bias-free:** no (demo limitation, disclosed in dashboard)
+
+---
+
+## Project Layout
+
+```text
+src/alpha_pipeline/     Pipeline package (features, validation, backtest, stats, CLI)
+dashboard/              HTML report builder + localhost server
+tests/                  Unit and integration tests
+reports/                Memo template and methodology notes
+artifacts/              Experiment outputs (gitignored)
+```
+
+---
+
+## CLI Reference
+
+| Command | Description |
+|---|---|
+| `python -m alpha_pipeline.cli --output artifacts/demo` | Run demo experiment |
+| `python -m alpha_pipeline.memo artifacts/demo` | Print research memo |
+| `python -m dashboard build` | Generate HTML report |
+| `python -m dashboard serve` | Generate + serve on localhost |
+| `pytest` | Run test suite |
+
+---
 
 ## Data Warning
 
-The reproducible MVP does not claim institutional point-in-time equity data. It is designed to prove the research machinery first: leakage controls, validation, backtesting, statistics, dashboards, and memos. Any real equity study must disclose survivorship, corporate-action, and point-in-time limitations.
+The built-in demo uses **synthetic data** for full reproducibility without API keys. It proves the research machinery — leakage controls, validation, backtesting, statistics, and reporting — not live equity alpha. Replace with survivorship-bias-free, point-in-time data before production claims.
