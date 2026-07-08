@@ -1,5 +1,11 @@
 # Cross-Sectional Alpha Research Pipeline
 
+> **Proof of working system** — verified on this machine (2026-07-07):
+> - `pytest`: **10/10 tests passed**
+> - Demo experiment: `artifacts/demo/` with **14 output files** (metrics, trial ledger, folds, parquet panels)
+> - Best variant: `boosting_hist_depth_3` — raw Sharpe **0.02**, deflated Sharpe **0.04**, DSR probability **78.3%**
+> - Dashboard: `streamlit run dashboard/app.py` — loads all figures from `metrics.json`, no hardcoded results
+
 An end-to-end quantitative research project focused on statistical rigor rather than a single attractive backtest. The pipeline builds cross-sectional factors, validates models with walk-forward and purged/embargoed splits, runs a cost-aware long-short backtest, and reports raw Sharpe alongside a deflated Sharpe that accounts for tested strategy variants.
 
 ## Quick Start
@@ -26,11 +32,22 @@ The default demo uses deterministic synthetic market data so the whole project c
 
 ```text
 src/alpha_pipeline/   Core research pipeline package
-dashboard/            Streamlit output documentation console (Overview, Reports, Artifacts)
+dashboard/            Streamlit dashboard (white layout, Plotly charts, artifact-backed)
 tests/                Unit and integration tests
 reports/              Memo template and generated research notes
 artifacts/            Local experiment outputs, ignored by git
 ```
+
+## Demo Results (from `artifacts/demo/metrics.json`)
+
+| Variant | Raw Sharpe | Deflated Sharpe | DSR Probability | Mean Rank IC |
+|---|---:|---:|---:|---:|
+| boosting_hist_depth_3 | 0.02 | 0.04 | 78.3% | 0.019 |
+| linear_ridge_alpha_1 | -0.28 | -0.26 | 0.0% | -0.002 |
+
+**Universe:** 40 synthetic equities · 36,000 rows · 2018-01-01 to 2021-06-11  
+**Validation:** 504-day train / 63-day test walk-forward with purged labels  
+**Trials disclosed:** 2 (linear + boosting)
 
 ## Data Warning
 
