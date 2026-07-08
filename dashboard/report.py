@@ -42,21 +42,21 @@ STYLES = """
 html, body { width: 100%; margin: 0; padding: 0; overflow-x: hidden; }
 body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Arial, sans-serif;
        background: #fff; color: #1a1a1a; line-height: 1.5; }
-.wrap { width: 100%; max-width: 100%; margin: 0; padding: 0; }
+.wrap { width: 100%; max-width: 100%; margin: 0; padding: 0 2rem; }
 .header { width: 100%; padding: 20px 0 12px; border-bottom: 1px solid #e5e7eb; }
-.header h1 { font-size: 1.75rem; margin: 0 0 8px; padding: 0 16px; }
-.meta { color: #6b7280; font-size: 0.9rem; margin: 0; padding: 0 16px 12px; }
+.header h1 { font-size: 1.75rem; margin: 0 0 8px; padding: 0; }
+.meta { color: #6b7280; font-size: 0.9rem; margin: 0; padding: 0 0 12px; }
 .section { width: 100%; padding: 20px 0; border-bottom: 1px solid #f3f4f6; }
-.section h2 { font-size: 1.2rem; margin: 0 0 12px; padding: 0 16px 8px; border-bottom: 1px solid #e5e7eb; }
-.section h3 { font-size: 1rem; margin: 20px 0 8px; padding: 0 16px; }
-.section p, .section ol, .section ul { padding: 0 16px; margin: 8px 0; }
+.section h2 { font-size: 1.2rem; margin: 0 0 12px; padding: 0 0 8px; border-bottom: 1px solid #e5e7eb; }
+.section h3 { font-size: 1rem; margin: 20px 0 8px; padding: 0; }
+.section p, .section ol, .section ul { padding: 0; margin: 8px 0; }
 .note { background: #f9fafb; border-top: 1px solid #e5e7eb; border-bottom: 1px solid #e5e7eb;
-        padding: 14px 16px; margin: 0; width: 100%; }
+        padding: 14px 0; margin: 0; width: 100%; }
 .warn { background: #fffbeb; border-top: 1px solid #fcd34d; border-bottom: 1px solid #fcd34d;
-        padding: 12px 16px; margin: 0; width: 100%; }
+        padding: 12px 0; margin: 0; width: 100%; }
 .metrics { display: grid; grid-template-columns: repeat(6, 1fr); gap: 0; margin: 0; width: 100%;
            border-bottom: 1px solid #e5e7eb; }
-.metric { border-right: 1px solid #e5e7eb; padding: 14px 16px; }
+.metric { border-right: 1px solid #e5e7eb; padding: 14px 0; }
 .metric:last-child { border-right: none; }
 .metric .k { color: #6b7280; font-size: 0.75rem; text-transform: uppercase; letter-spacing: 0.04em; }
 .metric .v { font-size: 1.15rem; font-weight: 600; margin-top: 4px; word-break: break-word; }
@@ -66,11 +66,11 @@ body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Helvetica, Ar
 .chart .plotly-graph-div { width: 100% !important; }
 .table-wrap { width: 100%; overflow-x: auto; }
 table.data { width: 100%; border-collapse: collapse; font-size: 0.88rem; margin: 0; }
-table.data th, table.data td { border-bottom: 1px solid #e5e7eb; padding: 10px 16px; text-align: left; }
+table.data th, table.data td { border-bottom: 1px solid #e5e7eb; padding: 10px 12px; text-align: left; }
 table.data th { background: #f9fafb; font-weight: 600; }
-pre.memo { background: #f9fafb; border: none; border-top: 1px solid #e5e7eb; padding: 16px;
+pre.memo { background: #f9fafb; border: none; border-top: 1px solid #e5e7eb; padding: 16px 0;
            overflow-x: auto; font-size: 0.85rem; white-space: pre-wrap; margin: 0; width: 100%; }
-.features { padding: 0 16px 8px; }
+.features { padding: 0 0 8px; }
 @media (max-width: 900px) {
   .metrics { grid-template-columns: repeat(2, 1fr); }
   .metric { border-bottom: 1px solid #e5e7eb; }
