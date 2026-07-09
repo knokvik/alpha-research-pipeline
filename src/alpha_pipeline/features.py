@@ -8,7 +8,19 @@ import pandas as pd
 from alpha_pipeline.data import validate_prices
 
 
-IDENTIFIER_COLUMNS = {"date", "asset", "as_of_date", "sector"}
+IDENTIFIER_COLUMNS = {
+    "date",
+    "asset",
+    "as_of_date",
+    "sector",
+    "label_start_date",
+    "label_end_date",
+    "forward_return",
+    "prediction",
+    "fold_id",
+    "test_start",
+    "test_end",
+}
 
 
 def factor_columns(frame: pd.DataFrame) -> list[str]:
