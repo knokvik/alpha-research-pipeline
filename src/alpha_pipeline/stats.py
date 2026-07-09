@@ -158,6 +158,7 @@ def estimate_probability_of_backtest_overfitting(fold_scores: pd.DataFrame) -> f
     overfit_count = 0
     evaluated_count = 0
     for _, group in fold_scores.groupby("fold_id"):
+        group = group.dropna(subset=["train_score", "test_score"])
         if group["variant"].nunique() < 2:
             continue
         in_sample_winner = group.sort_values("train_score", ascending=False).iloc[0]
