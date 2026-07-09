@@ -26,7 +26,7 @@ The default demo uses deterministic synthetic market data so the whole project c
 
 ```text
 src/alpha_pipeline/   Core research pipeline package
-dashboard/            Streamlit research dashboard
+dashboard/            Streamlit output documentation console (Overview, Reports, Artifacts)
 tests/                Unit and integration tests
 reports/              Memo template and generated research notes
 artifacts/            Local experiment outputs, ignored by git
