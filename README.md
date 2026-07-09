@@ -11,9 +11,7 @@ A research project and reproducible pipeline for statistically rigorous cross-se
 
 ## Problem Statement
 
-Quantitative research pipelines often optimize for a single attractive backtest while under-reporting how many model variants were tried, how validation was structured, and whether results survive multiple-testing correction. A headline Sharpe ratio without disclosed trials, purged folds, or transaction costs is difficult to defend in production.
-
-Alpha Research Pipeline treats statistical rigor as the primary deliverable. It logs every tested variant, validates out of sample with walk-forward splits, applies deflated Sharpe against the full search space, and documents data limitations before any live claim.
+Most quant pipelines report a single backtest Sharpe without disclosing how many variants were tried, how validation was purged, or whether results survive multiple-testing correction. This project logs every trial, validates out of sample, and reports deflated Sharpe from persisted artifacts instead of headline performance alone.
 
 ## Research Results
 
@@ -76,6 +74,61 @@ Net performance for the best variant under alternate transaction-cost assumption
 The useful result is not a standalone Sharpe ratio. The useful result is the gap between raw performance and the deflated result after disclosing all tested variants. In this demo, `boosting_hist_depth_3` shows a modest positive deflated Sharpe and high DSR probability relative to the linear baseline, but absolute performance remains small.
 
 > **Note on data limitations:** The built-in demo uses synthetic data for full reproducibility without API keys or data-vendor credentials. The universe is not survivorship-bias-free and is not a substitute for institutional point-in-time data. The pipeline proves the research machinery — leakage controls, validation, backtesting, statistics, and reporting — not live equity alpha.
+
+### Charts
+
+Generated from `artifacts/demo/` by the dashboard report builder.
+
+![Deflated Sharpe Decay](docs/sharpe_decay.png)
+
+![Raw vs Deflated Sharpe](docs/variant_comparison.png)
+
+![Walk-Forward Fold Scores](docs/fold_scores.png)
+
+![Cumulative Gross Return](docs/equity_curve.png)
+
+### Pipeline Output
+
+Research memo excerpt (`reports/generated/demo_memo.md`):
+
+```text
+Best variant: boosting_hist_depth_3
+Raw Sharpe: 0.02
+Deflated Sharpe: 0.04
+DSR probability: 78.3%
+Trials disclosed: 2
+Mean rank IC: 0.019
+ICIR: 1.91
+Average turnover: 0.205
+Max drawdown: -9.1%
+```
+
+`metrics.json` summary:
+
+```json
+{
+  "best_variant": "boosting_hist_depth_3",
+  "data_quality": {
+    "n_assets": 40,
+    "n_rows": 36000,
+    "start_date": "2018-01-01",
+    "end_date": "2021-06-11",
+    "survivorship_bias_free": false
+  },
+  "variants": {
+    "boosting_hist_depth_3": {
+      "performance": { "sharpe": 0.021, "max_drawdown": -0.091 },
+      "deflated_sharpe": { "deflated_sharpe": 0.039, "probability": 0.783 }
+    },
+    "linear_ridge_alpha_1": {
+      "performance": { "sharpe": -0.276, "max_drawdown": -0.107 },
+      "deflated_sharpe": { "deflated_sharpe": -0.257, "probability": 0.0 }
+    }
+  }
+}
+```
+
+HTML dashboard output: `artifacts/dashboard/index.html` (run `python -m dashboard serve`).
 
 ## Usage
 
